@@ -31,6 +31,33 @@ static unsigned int udp_timeouts[UDP_CT_MAX] = {
 	[UDP_CT_REPLIED]	= 180*HZ,
 };
 
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH) || defined(CONFIG_RTL_HARDWARE_NAT)
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
+#include <net/ip_vs.h>
+static unsigned int *udp_get_timeouts(struct net *net);
+unsigned int udp_get_timeouts_by_state(enum udp_conntrack state, void *ct_or_cp,int is_ct)
+{
+	struct net *net = NULL;
+	if (is_ct) {
+		struct nf_conn *ct = (struct nf_conn *)ct_or_cp;
+		net = nf_ct_net(ct);
+	}
+	else {
+		struct ip_vs_conn *cp = (struct ip_vs_conn *)ct_or_cp;
+		net = cp->ipvs->net;
+	}
+	unsigned int *udp_timeouts_run = udp_get_timeouts(net);
+	return udp_timeouts_run[state];
+}
+#else
+unsigned int udp_get_timeouts_by_state(enum udp_conntrack state)
+{
+	return udp_timeouts[state];
+}
+#endif
+#endif /* CONFIG_RTL_IPTABLES_FAST_PATH || CONFIG_RTL_HARDWARE_NAT */
+
 static inline struct nf_udp_net *udp_pernet(struct net *net)
 {
 	return &net->ct.nf_ct_proto.udp;
@@ -218,6 +245,23 @@ static struct ctl_table udp_sysctl_table[] = {
 	},
 	{ }
 };
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+static struct ctl_table udp_compat_sysctl_table[] = {
+	{
+		.procname	= "ip_conntrack_udp_timeout",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_udp_timeout_stream",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{ }
+};
+#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
 static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
@@ -233,6 +277,24 @@ static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 		return -ENOMEM;
 	pn->ctl_table[0].data = &un->timeouts[UDP_CT_UNREPLIED];
 	pn->ctl_table[1].data = &un->timeouts[UDP_CT_REPLIED];
+#endif
+	return 0;
+}
+
+static int udp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
+					   struct nf_udp_net *un)
+{
+#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+	pn->ctl_compat_table = kmemdup(udp_compat_sysctl_table,
+				       sizeof(udp_compat_sysctl_table),
+				       GFP_KERNEL);
+	if (!pn->ctl_compat_table)
+		return -ENOMEM;
+
+	pn->ctl_compat_table[0].data = &un->timeouts[UDP_CT_UNREPLIED];
+	pn->ctl_compat_table[1].data = &un->timeouts[UDP_CT_REPLIED];
+#endif
 #endif
 	return 0;
 }

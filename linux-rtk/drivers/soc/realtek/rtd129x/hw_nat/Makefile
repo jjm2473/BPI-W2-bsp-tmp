@@ -73,7 +73,7 @@ ifeq ($(CONFIG_RTL_8367R_SUPPORT), y)
 else
 ifeq ($(CONFIG_RTL_AP_PACKAGE), y)
 else
-EXTRA_CFLAGS += -Werror
+# EXTRA_CFLAGS += -Werror
 endif
 endif
 

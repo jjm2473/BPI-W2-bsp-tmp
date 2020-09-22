@@ -190,6 +190,10 @@
 		status = "okay";
 	};
 
+  hwnat: gmac@98060000 {
+		status = "okay";
+  };
+
 	pcie@9804E000 {
 		status = "okay";
 	};
@@ -258,8 +262,8 @@
 			compatible = "atmel,24c32";
 			status = "disabled";
 			reg = <0x52>;
-			pagesize = <32>; 
-		}; 
+			pagesize = <32>;
+		};
 	};
 
 	spi@9801BD00 {
@@ -335,4 +339,3 @@
 		status = "okay";
 	};
 };
-

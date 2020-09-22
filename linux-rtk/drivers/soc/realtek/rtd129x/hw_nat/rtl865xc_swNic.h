@@ -324,6 +324,8 @@
 #define	_RTL865XB_EXTPORTMASKS		7
 #define CONFIG_RTL_CUSTOM_PASSTHRU
 
+#include <linux/netdevice.h>
+
 typedef struct {
 	uint16 vid;
 	uint16 pid;

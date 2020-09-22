@@ -624,14 +624,20 @@ typedef struct dma_rx_desc {
 int32 New_swNic_init(uint32 userNeedRxPkthdrRingCnt[RTL865X_SWNIC_RXRING_HW_PKTDESC],
 				 uint32 userNeedTxPkthdrRingCnt[RTL865X_SWNIC_TXRING_HW_PKTDESC],
 				 uint32 clusterSize);
+int32 New_swNic_reInit(void);
+int32 New_check_tx_done_desc_swCore_own(int32 *tx_done_inx);
 
+int32 New_swNic_receive(rtl_nicRx_info *info, int retryCount);
 int32 New_swNic_send(void *skb, void * output, uint32 len,rtl_nicTx_info *nicTx);
 int32 New_swNic_txDone(int idx);
 void New_swNic_freeRxBuf(void);
 void New_dumpTxRing(struct seq_file *s);
 void New_dumpRxRing(struct seq_file *s);
 
+int32 _New_swNic_send_tso_sg(struct sk_buff *skb, void *output, uint32 len, rtl_nicTx_info *nicTx);
+
+uint32 rtk_get_vlan_tagmask(uint16 vid); // declared in rtl_nic.c
+
 extern uint32  size_of_cluster;
 
 #endif
-

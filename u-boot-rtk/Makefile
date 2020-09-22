@@ -327,7 +327,7 @@ ARM_SRC_ROOT := $(TOPDIR)/..
 #    $(shell mkdir -p $(ARM_SRC_ROOT)/tmp)
 #    $(shell tar xfj $(TOPDIR)/toolchain/$(TOOLCHAIN_PREFIX).tar.bz2 -C $(TOPDIR)/toolchain)
 #endif
-CROSS_COMPILE := $(TOPDIR)/toolchain/$(TOOLCHAIN_PREFIX)/bin/$(CROSS_COMPILE_BIN_PREFIX)
+#CROSS_COMPILE := $(TOPDIR)/toolchain/$(TOOLCHAIN_PREFIX)/bin/$(CROSS_COMPILE_BIN_PREFIX)
 endif
 
 KCONFIG_CONFIG	?= .config

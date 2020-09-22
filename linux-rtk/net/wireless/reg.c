@@ -598,6 +598,114 @@ static inline int call_crda(const char *alpha2)
 }
 #endif /* CONFIG_CFG80211_CRDA_SUPPORT */
 
+/* code to directly load a firmware database through request_firmware */
+static const struct fwdb_header *regdb;
+
+struct fwdb_country {
+	u8 alpha2[2];
+	__be16 coll_ptr;
+	/* this struct cannot be extended */
+} __packed __aligned(4);
+
+struct fwdb_collection {
+	u8 len;
+	u8 n_rules;
+	u8 dfs_region;
+	/* no optional data yet */
+	/* aligned to 2, then followed by __be16 array of rule pointers */
+} __packed __aligned(4);
+
+enum fwdb_flags {
+	FWDB_FLAG_NO_OFDM	= BIT(0),
+	FWDB_FLAG_NO_OUTDOOR	= BIT(1),
+	FWDB_FLAG_DFS		= BIT(2),
+	FWDB_FLAG_NO_IR		= BIT(3),
+	FWDB_FLAG_AUTO_BW	= BIT(4),
+};
+
+struct fwdb_wmm_ac {
+	u8 ecw;
+	u8 aifsn;
+	__be16 cot;
+} __packed;
+
+struct fwdb_wmm_rule {
+	struct fwdb_wmm_ac client[IEEE80211_NUM_ACS];
+	struct fwdb_wmm_ac ap[IEEE80211_NUM_ACS];
+} __packed;
+
+struct fwdb_rule {
+	u8 len;
+	u8 flags;
+	__be16 max_eirp;
+	__be32 start, end, max_bw;
+	/* start of optional data */
+	__be16 cac_timeout;
+	__be16 wmm_ptr;
+} __packed __aligned(4);
+
+#define FWDB_MAGIC 0x52474442
+#define FWDB_VERSION 20
+
+struct fwdb_header {
+	__be32 magic;
+	__be32 version;
+	struct fwdb_country country[];
+} __packed __aligned(4);
+
+static int ecw2cw(int ecw)
+{
+	return (1 << ecw) - 1;
+}
+
+static int __regdb_query_wmm(const struct fwdb_header *db,
+			     const struct fwdb_country *country, int freq,
+			     struct ieee80211_reg_rule *rrule)
+{
+	unsigned int ptr = be16_to_cpu(country->coll_ptr) << 2;
+	struct fwdb_collection *coll = (void *)((u8 *)db + ptr);
+	int i;
+
+	for (i = 0; i < coll->n_rules; i++) {
+		__be16 *rules_ptr = (void *)((u8 *)coll + ALIGN(coll->len, 2));
+		unsigned int rule_ptr = be16_to_cpu(rules_ptr[i]) << 2;
+		struct fwdb_rule *rule = (void *)((u8 *)db + rule_ptr);
+
+		if (rule->len < offsetofend(struct fwdb_rule, wmm_ptr))
+			continue;
+
+		if (freq >= KHZ_TO_MHZ(be32_to_cpu(rule->start)) &&
+		    freq <= KHZ_TO_MHZ(be32_to_cpu(rule->end))) {
+			return 0;
+		}
+	}
+
+	return -ENODATA;
+}
+
+int reg_query_regdb_wmm(char *alpha2, int freq, struct ieee80211_reg_rule *rule)
+{
+	const struct fwdb_header *hdr = regdb;
+	const struct fwdb_country *country;
+
+	if (!regdb)
+		return -ENODATA;
+
+	if (IS_ERR(regdb))
+		return PTR_ERR(regdb);
+
+	country = &hdr->country[0];
+	while (country->coll_ptr) {
+		if (alpha2_equal(alpha2, country->alpha2))
+			return __regdb_query_wmm(regdb, country, freq, rule);
+
+		country++;
+	}
+
+	return -ENODATA;
+}
+EXPORT_SYMBOL(reg_query_regdb_wmm);
+
 static bool reg_query_database(struct regulatory_request *request)
 {
 	/* query internal regulatory database (if it exists) */

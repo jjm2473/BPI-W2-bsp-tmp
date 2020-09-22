@@ -361,6 +361,7 @@ int32 rtl865xC_setAsicPortPauseFlowControl(uint32 port, uint8 rxEn, uint8 txEn);
 int32 rtl865xC_getAsicPortPauseFlowControl(uint32 port, uint8 *rxEn, uint8 *txEn);
 
 int32 rtl8651_restartAsicEthernetPHYNway(uint32 port);
+int32 rtl8651_setAsicEthernetPHYPowerDown( uint32 port, uint32 pwrDown );
 
 #if defined(CONFIG_RTD_1295_HWNAT)
 int32 rtl8651_setAsicEthernetPHYTxPadDriving(uint32 port);

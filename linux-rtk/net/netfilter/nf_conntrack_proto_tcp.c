@@ -32,6 +32,9 @@
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
 
 /* "Be conservative in what you do,
     be liberal in what you accept from others."
@@ -271,6 +274,32 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 	}
 };
 
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH) || defined(CONFIG_RTL_HARDWARE_NAT)
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
+static unsigned int *tcp_get_timeouts(struct net *net);
+int tcp_get_timeouts_by_state(u_int8_t state,void *ct_or_cp, int is_ct)
+{
+	struct net *net = NULL;
+	if (is_ct) {
+		struct nf_conn *ct = (struct nf_conn *)ct_or_cp;
+		net = nf_ct_net(ct);
+	}
+	else {
+		struct ip_vs_conn *cp = (struct ip_vs_conn *)ct_or_cp;
+		net = cp->ipvs->net;
+	}
+	unsigned int *tcp_timeouts_run = tcp_get_timeouts(net);
+	return tcp_timeouts_run[state];
+}
+#else
+int tcp_get_timeouts_by_state(u_int8_t state)
+{
+	return tcp_timeouts[state];
+}
+#endif
+#endif /* CONFIG_RTL_IPTABLES_FAST_PATH || CONFIG_RTL_HARDWARE_NAT */
+
 static inline struct nf_tcp_net *tcp_pernet(struct net *net)
 {
 	return &net->ct.nf_ct_proto.tcp;
@@ -495,7 +524,10 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 	}
 }
 
-static bool tcp_in_window(const struct nf_conn *ct,
+#if !defined(FAST_PATH_SPI_ENABLED)
+static
+#endif
+bool tcp_in_window(const struct nf_conn *ct,
 			  struct ip_ct_tcp *state,
 			  enum ip_conntrack_dir dir,
 			  unsigned int index,
@@ -824,6 +856,9 @@ static int tcp_packet(struct nf_conn *ct,
 	struct tcphdr _tcph;
 	unsigned long timeout;
 	unsigned int index;
+#if defined(CONFIG_RTL_819X)
+	rtl_nf_conntrack_inso_s conn_info;
+#endif /* CONFIG_RTL_819X */
 
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
 	BUG_ON(th == NULL);
@@ -834,6 +869,16 @@ static int tcp_packet(struct nf_conn *ct,
 	index = get_conntrack_index(th);
 	new_state = tcp_conntracks[dir][index][old_state];
 	tuple = &ct->tuplehash[dir].tuple;
+#if defined(CONFIG_RTL_819X)
+	conn_info.net = net;
+	conn_info.ct = ct;
+	conn_info.skb = (struct sk_buff *)skb;
+	conn_info.hooknum = hooknum;
+	conn_info.ctinfo = ctinfo;
+	conn_info.new_state = new_state;
+	conn_info.old_state = old_state;
+	rtl_tcp_packet_hooks(&conn_info);
+#endif /* CONFIG_RTL_819X */
 
 	switch (new_state) {
 	case TCP_CONNTRACK_SYN_SENT:
@@ -1031,12 +1076,18 @@ static int tcp_packet(struct nf_conn *ct,
 		break;
 	}
 
-	if (!tcp_in_window(ct, &ct->proto.tcp, dir, index,
+#if defined(FAST_PATH_SPI_ENABLED) || !(defined(CONFIG_RTL_IPTABLES_FAST_PATH) ||defined(CONFIG_RTL_HARDWARE_NAT))
+	if (
+#if defined(FAST_PATH_SPI_ENABLED)
+		(fast_spi == 1) &&
+#endif
+		!tcp_in_window(ct, &ct->proto.tcp, dir, index,
 			   skb, dataoff, th, pf)) {
 		spin_unlock_bh(&ct->lock);
 		return -NF_ACCEPT;
 	}
-     in_window:
+#endif
+	 in_window:
 	/* From now on we have got in-window packets */
 	ct->proto.tcp.last_index = index;
 	ct->proto.tcp.last_dir = dir;
@@ -1481,6 +1532,90 @@ static struct ctl_table tcp_sysctl_table[] = {
 	},
 	{ }
 };
+
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+static struct ctl_table tcp_compat_sysctl_table[] = {
+	{
+		.procname	= "ip_conntrack_tcp_timeout_syn_sent",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_syn_sent2",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_syn_recv",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_established",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_fin_wait",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_close_wait",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_last_ack",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_time_wait",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_close",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_max_retrans",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_loose",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_be_liberal",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_max_retrans",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{ }
+};
+#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
 static int tcp_kmemdup_sysctl_table(struct nf_proto_net *pn,
@@ -1509,6 +1644,35 @@ static int tcp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	pn->ctl_table[10].data = &tn->tcp_loose;
 	pn->ctl_table[11].data = &tn->tcp_be_liberal;
 	pn->ctl_table[12].data = &tn->tcp_max_retrans;
+#endif
+	return 0;
+}
+
+static int tcp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
+					   struct nf_tcp_net *tn)
+{
+#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+	pn->ctl_compat_table = kmemdup(tcp_compat_sysctl_table,
+				       sizeof(tcp_compat_sysctl_table),
+				       GFP_KERNEL);
+	if (!pn->ctl_compat_table)
+		return -ENOMEM;
+
+	pn->ctl_compat_table[0].data = &tn->timeouts[TCP_CONNTRACK_SYN_SENT];
+	pn->ctl_compat_table[1].data = &tn->timeouts[TCP_CONNTRACK_SYN_SENT2];
+	pn->ctl_compat_table[2].data = &tn->timeouts[TCP_CONNTRACK_SYN_RECV];
+	pn->ctl_compat_table[3].data = &tn->timeouts[TCP_CONNTRACK_ESTABLISHED];
+	pn->ctl_compat_table[4].data = &tn->timeouts[TCP_CONNTRACK_FIN_WAIT];
+	pn->ctl_compat_table[5].data = &tn->timeouts[TCP_CONNTRACK_CLOSE_WAIT];
+	pn->ctl_compat_table[6].data = &tn->timeouts[TCP_CONNTRACK_LAST_ACK];
+	pn->ctl_compat_table[7].data = &tn->timeouts[TCP_CONNTRACK_TIME_WAIT];
+	pn->ctl_compat_table[8].data = &tn->timeouts[TCP_CONNTRACK_CLOSE];
+	pn->ctl_compat_table[9].data = &tn->timeouts[TCP_CONNTRACK_RETRANS];
+	pn->ctl_compat_table[10].data = &tn->tcp_loose;
+	pn->ctl_compat_table[11].data = &tn->tcp_be_liberal;
+	pn->ctl_compat_table[12].data = &tn->tcp_max_retrans;
+#endif
 #endif
 	return 0;
 }

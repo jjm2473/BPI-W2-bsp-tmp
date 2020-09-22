@@ -383,6 +383,8 @@
 		gpio_link_led_enable = <0>; /* 0:disable, 1:enable */
 		gpios = <&rtk_iso_gpio 27 1 0>; /* Link LED, output, default low */
 
+		local-mac-address = [00 01 73 00 00 01];
+
 		clocks = <&cc CC_PLL_DDSA>,
 			<&clk_en_1 CLK_EN_SATA_0>,
 			<&clk_en_1 CLK_EN_SATA_ALIVE_0>,
@@ -802,7 +804,7 @@
 		#size-cells = <0>;
 		clocks = <&clk_en_2 CLK_EN_MISC_I2C_5>;
 		resets = <&rst2 RSTN_I2C_5>;
-		
+
 		rts5400@6A {
 			compatible = "rtk-rts5400";
 			status = "disabled";

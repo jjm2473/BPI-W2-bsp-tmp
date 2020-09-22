@@ -76,8 +76,16 @@ obj-$(CONFIG_HSR)		+= hsr/
 ifneq ($(CONFIG_NET_SWITCHDEV),)
 obj-y				+= switchdev/
 endif
+ifeq ($(CONFIG_RTL_IPTABLES_FAST_PATH),y)
+obj-$(CONFIG_RTL_IPTABLES_FAST_PATH) += rtl/fastpath/
+endif
 ifneq ($(CONFIG_NET_L3_MASTER_DEV),)
 obj-y				+= l3mdev/
+endif
+ifeq ($(CONFIG_NET),y)
+ifeq ($(CONFIG_RTL_819X),y)
+obj-$(CONFIG_RTL_819X) += rtl/features/
+endif
 endif
 obj-$(CONFIG_QRTR)		+= qrtr/
 obj-$(CONFIG_NET_NCSI)		+= ncsi/

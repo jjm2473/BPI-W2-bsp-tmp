@@ -52,6 +52,45 @@ config IP_ADVANCED_ROUTER
 
 	  If unsure, say N here.
 
+config RTL_IPTABLES_FAST_PATH
+	tristate "Realtek IPTables Fast Path"
+	default y
+	depends on RTL_HARDWARE_NAT
+
+config RTL_FAST_PPPOE
+        tristate "Realtek Fast PPPOE support"
+        default n
+
+config RTL_PPPOE_DIRECT_REPLY
+        tristate "Realtek Fast PPPOE LCP echo reply support"
+        default n
+
+
+config RTL_L2TP_DIRECT_PPP_REPLY
+        tristate "Realtek Fast L2TP LCP echo reply support"
+        default n
+
+config FAST_PATH_SPI_ENABLED
+        bool "Realtek Fastpath SPI(stateful packet inspection) support"
+        depends on RTL_IPTABLES_FAST_PATH
+        default n
+
+config RTL_FASTBRIDGE
+        tristate "Realtek fast bridge"
+        default n
+
+config RTL_FASTPATH_HWNAT_SUPPORT_KERNEL_3_X
+        tristate "Realtek Fastpath and HwNat for kernel-3.x"
+        default n
+
+#config RTL_FAST_IPV6
+#        tristate "Realtek FAST IPv6"
+#        default n
+
+config RTL_SUPPORT_ACCESS_PORT_FORWARD_FROM_LAN
+        tristate "Realtek support lan client access port forwarding port through wan_ip:fwd_port"
+        default n
+
 config IP_FIB_TRIE_STATS
 	bool "FIB TRIE statistics"
 	depends on IP_ADVANCED_ROUTER
@@ -403,6 +442,14 @@ config INET_XFRM_MODE_BEET
 	select XFRM
 	---help---
 	  Support for IPsec BEET mode.
+
+	  If unsure, say Y.
+
+config INET_LRO
+	tristate "Large Receive Offload (ipv4/tcp)"
+	default y
+	---help---
+	  Support for Large Receive Offload (ipv4/tcp).
 
 	  If unsure, say Y.
 

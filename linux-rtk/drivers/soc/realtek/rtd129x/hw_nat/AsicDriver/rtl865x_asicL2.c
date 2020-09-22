@@ -1507,10 +1507,10 @@ void Setting_RTL8196C_PHY(void)
 
 	/*
 	  #=========patch for eee============================
-	  #1. page4¡Breg24¡Glpi_rx_ti_timer_cnt change to f3
+	  #1. page4ï¿½Breg24ï¿½Glpi_rx_ti_timer_cnt change to f3
 	  phywb all 4 24 7-0 0xf3
 
-	  #2. page4¡Breg16¡Grg_txqt_ps_sel change to 1
+	  #2. page4ï¿½Breg16ï¿½Grg_txqt_ps_sel change to 1
 	  phywb all 4 16 3 1
 	*/
 	Set_GPHYWB(999, 4, 24, 0xff00, 0xf3);
@@ -6223,8 +6223,8 @@ void init_8325d(void)
 	REG32(PEFGH_DAT) |= (0x00020000);
 	mdelay(1000);
 
-	//I2C data¡GGPIOG6, P0_RXD5
-	//I2C clock¡GGPIOG7, P0_RXD4
+	//I2C dataï¿½GGPIOG6, P0_RXD5
+	//I2C clockï¿½GGPIOG7, P0_RXD4
 	WRITE_MEM32(PEFGH_CNR, READ_MEM32(PEFGH_CNR) & (~(0x00C00000)));	//set GPIO pin, G6 and G7
 	WRITE_MEM32(PEFGH_DIR, READ_MEM32(PEFGH_DIR) | ((0x00C00000))); //output pin
 

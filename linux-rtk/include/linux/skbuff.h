@@ -213,6 +213,44 @@
  * checksums are possible with UDP encapsulation).
  */
 
+#if defined(CONFIG_RTL_819X)
+#define RTL_PRIV_DATA_SIZE		128
+#endif
+
+#if defined(CONFIG_RTL_QOS_PATCH) || defined(CONFIG_RTL_HW_QOS_SUPPORT_WLAN)
+#define	QOS_PATCH_HIGH_QUEUE_PRIO	7
+#define	QOS_PATCH_RX_FROM_LOCAL		0xff
+#define QOS_PATCH_RX_FROM_WIRELESS	7
+#endif
+
+#ifndef CONFIG_RTL_CUSTOM_PASSTHRU
+#define CONFIG_RTL_CUSTOM_PASSTHRU
+#endif
+
+#if defined (CONFIG_RTL_VLAN_8021Q) && defined(CONFIG_RTL_8021Q_VLAN_SUPPORT_SRC_TAG) && defined(CONFIG_RTL_CUSTOM_PASSTHRU)
+#define IS_IP6_MC_PASSTHRU		0x01
+#define FLOOD_IN_BRIDGE			0x02
+#endif
+
+
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+#define PORT_DECISION_PRIORITY_BITMAP	1<<0
+#define VLAN_DECISION_PRIORITY_BITMAP	1<<1
+#define DSCP_DECISION_PRIORITY_BITMAP	1<<2
+#define ACL_DECISION_PRIORITY_BITMAP	1<<3
+#define NAT_DECISION_PRIORITY_BITMAP	1<<4
+
+enum decision_priority
+{
+	port_decision_priority,
+	vlan_decision_priority,
+	dscp_decision_priority,
+	acl_decision_priority,
+	nat_decision_priority,
+	max_decision_priority,
+};
+#endif
+
 /* Don't change this without changing skb_csum_unnecessary! */
 #define CHECKSUM_NONE		0
 #define CHECKSUM_UNNECESSARY	1
@@ -656,6 +694,10 @@ struct sk_buff {
 	 */
 	char			cb[48] __aligned(8);
 
+	#if defined(CONFIG_RTD_1295_HWNAT)
+	/*This field is only needed by RtL8190 Driver.FIX ME!!!*/
+	unsigned char   __unused;
+	#endif /* CONFIG_RTD_1295_HWNAT */
 	unsigned long		_skb_refdst;
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_XFRM
@@ -769,10 +811,53 @@ struct sk_buff {
 		unsigned int	sender_cpu;
 	};
 #endif
+	union {
 #ifdef CONFIG_NETWORK_SECMARK
 	__u32		secmark;
 #endif
+#ifdef CONFIG_NET_SWITCHDEV
+		__u32		offload_fwd_mark;
+#endif
+	};
 
+#if defined(CONFIG_RTL_CUSTOM_PASSTHRU) && defined(CONFIG_RTL_VLAN_8021Q) && defined(CONFIG_RTL_8021Q_VLAN_SUPPORT_SRC_TAG)
+	__u8			passThruFlag;
+#endif /* CONFIG_RTL_CUSTOM_PASSTHRU && CONFIG_RTL_VLAN_8021Q && CONFIG_RTL_8021Q_VLAN_SUPPORT_SRC_TAG */
+
+//#if defined( CONFIG_RTL_HARDWARE_MULTICAST) || defined (CONFIG_RTL_VLAN_8021Q)
+	__u16			srcPort;
+	__u16			srcVlanId:12;
+//#endif
+
+/* #if defined(CONFIG_NETFILTER_XT_MATCH_PHYPORT)|| defined(CONFIG_RTL_FAST_FILTER) */
+#if defined(CONFIG_RTD_1295_HWNAT)
+	__u8			srcPhyPort;		// 0~4
+	__u8			dstPhyPort;		// 0~4
+#endif
+/* #endif */
+
+#if defined(CONFIG_RTL_VLAN_8021Q)
+	__u8 linux_vlan_src_tag[4];
+#endif
+#if defined(CONFIG_RTL_FAST_BRIDGE)
+	__u8 fast_br_forwarding_flags;
+#endif
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+	__u8	decision_bitmap;
+	__u32	mark_ext[max_decision_priority];
+#endif
+
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+/* #if defined(IMPROVE_QOS) && defined(CONFIG_NET_SCHED) */
+	/* This member is only used at fastpath when both IMPROVE_QOS and CONFIG_NET_SCHED are defined. */
+	struct net_device	*inDev;
+/* end of IMPROVE_QOS and CONFIG_NET_SCHED */
+#endif
+
+#if defined (CONFIG_RTL_FAST_PPPOE)
+	__u32 pppoe_flag;
+	struct net_device	*rx_dev;
+#endif
 	union {
 		__u32		mark;
 		__u32		reserved_tailroom;
@@ -811,6 +896,9 @@ struct sk_buff {
  */
 #include <linux/slab.h>
 
+#if defined(CONFIG_RTL_819X)
+extern void rtl_dev_kfree_skb_any(struct sk_buff *skb);
+#endif
 
 #define SKB_ALLOC_FCLONE	0x01
 #define SKB_ALLOC_RX		0x02
@@ -845,6 +933,14 @@ static inline struct dst_entry *skb_dst(const struct sk_buff *skb)
 		!rcu_read_lock_bh_held());
 	return (struct dst_entry *)(skb->_skb_refdst & SKB_DST_PTRMASK);
 }
+
+#if defined(CONFIG_RTL_819X)
+static inline struct dst_entry *rtl_skb_dst(const struct sk_buff *skb)
+{
+	return (struct dst_entry *)(skb->_skb_refdst);
+}
+#endif
+
 
 /**
  * skb_dst_set - sets skb dst
@@ -1920,6 +2016,21 @@ static inline unsigned char *__skb_put(struct sk_buff *skb, unsigned int len)
 	return tmp;
 }
 
+static inline void *skb_put_data(struct sk_buff *skb, const void *data,
+				 unsigned int len)
+{
+	void *tmp = (void *)skb_put(skb, len);
+
+	memcpy(tmp, data, len);
+
+	return tmp;
+}
+
+static inline void skb_put_u8(struct sk_buff *skb, u8 val)
+{
+	*(u8 *)skb_put(skb, 1) = val;
+}
+
 unsigned char *skb_push(struct sk_buff *skb, unsigned int len);
 static inline unsigned char *__skb_push(struct sk_buff *skb, unsigned int len)
 {
@@ -2410,7 +2521,13 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
 {
 	struct sk_buff *skb;
 	while ((skb = __skb_dequeue(list)) != NULL)
+	{
+		#ifdef CONFIG_RTL_819X
+		rtl_dev_kfree_skb_any(skb);
+		#else
 		kfree_skb(skb);
+		#endif
+	}
 }
 
 void skb_rbtree_purge(struct rb_root *root);

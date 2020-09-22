@@ -91,15 +91,15 @@ static void _rtl8651_asicTableAccessForward(uint32 tableType, uint32 eidx, void 
 
 #ifdef RTL865X_FAST_ASIC_ACCESS
 
+	// {
+	register uint32 index;
+
+	for( index = 0; index < _rtl8651_asicTableSize[tableType]; index++ )
 	{
-		register uint32 index;
-
-		for( index = 0; index < _rtl8651_asicTableSize[tableType]; index++ )
-		{
-			WRITE_MEM32(TCR0+(index<<2), *((uint32 *)entryContent_P + index));
-		}
-
+		WRITE_MEM32(TCR0+(index<<2), *((uint32 *)entryContent_P + index));
 	}
+
+	// }
 #else
 	WRITE_MEM32(TCR0, *((uint32 *)entryContent_P + 0));
 	WRITE_MEM32(TCR1, *((uint32 *)entryContent_P + 1));
@@ -257,64 +257,64 @@ int32 _rtl8651_readAsicEntry(uint32 tableType, uint32 eidx, void *entryContent_P
 	while ( (READ_MEM32(SWTACR) & ACTION_MASK) != ACTION_DONE );//Wait for command ready
 
 #ifdef RTL865X_READ_MULTIPLECHECK
-		do
+	do
+	{
+		for (	entryContentIdx = 0 ;
+			entryContentIdx < RTL865X_READ_MULTIPLECHECK_CNT ;
+		   	entryContentIdx ++ )
 		{
-			for (	entryContentIdx = 0 ;
-				entryContentIdx < RTL865X_READ_MULTIPLECHECK_CNT ;
-			   	entryContentIdx ++ )
-			{
-				entryContent[entryContentIdx][0] = *(entryAddr + 0);
-				entryContent[entryContentIdx][1] = *(entryAddr + 1);
-				entryContent[entryContentIdx][2] = *(entryAddr + 2);
-				entryContent[entryContentIdx][3] = *(entryAddr + 3);
-				entryContent[entryContentIdx][4] = *(entryAddr + 4);
-				entryContent[entryContentIdx][5] = *(entryAddr + 5);
-				entryContent[entryContentIdx][6] = *(entryAddr + 6);
-				entryContent[entryContentIdx][7] = *(entryAddr + 7);
+			entryContent[entryContentIdx][0] = *(entryAddr + 0);
+			entryContent[entryContentIdx][1] = *(entryAddr + 1);
+			entryContent[entryContentIdx][2] = *(entryAddr + 2);
+			entryContent[entryContentIdx][3] = *(entryAddr + 3);
+			entryContent[entryContentIdx][4] = *(entryAddr + 4);
+			entryContent[entryContentIdx][5] = *(entryAddr + 5);
+			entryContent[entryContentIdx][6] = *(entryAddr + 6);
+			entryContent[entryContentIdx][7] = *(entryAddr + 7);
 #if defined(CONFIG_RTL_8198C) || defined(CONFIG_RTL_8197F)
-				if(_rtl8651_asicTableSize[tableType]>8)
-				{
-				/*
-				   The LSB 256bits is defined as before, but bit 335 to bit256 is moved to add addr[15].
-				   for example:
-					ACL rule 0 Virtual Address : bit [255:0]  : 0xbb0c_0000 ~ 0xbb0c_001c
-						                                  bit [335:256] : 0xbb0c_8000 ~ 0xbb0c_8008
+			if(_rtl8651_asicTableSize[tableType]>8)
+			{
+			/*
+			   The LSB 256bits is defined as before, but bit 335 to bit256 is moved to add addr[15].
+			   for example:
+				ACL rule 0 Virtual Address : bit [255:0]  : 0xbb0c_0000 ~ 0xbb0c_001c
+					                                  bit [335:256] : 0xbb0c_8000 ~ 0xbb0c_8008
 
-					entryContent[entryContentIdx][8] = *(entryAddr + 0 + (BIT(15) / 4));
-					entryContent[entryContentIdx][9] = *(entryAddr + 1 + (BIT(15) / 4));
-					entryContent[entryContentIdx][10] = *(entryAddr + 2 + (BIT(15) / 4));
-				 */
-				entryContent[entryContentIdx][8] = *(entryAddr + 8192);
-				entryContent[entryContentIdx][9] = *(entryAddr + 8193);
-				entryContent[entryContentIdx][10] = *(entryAddr + 8194);
-				}
+				entryContent[entryContentIdx][8] = *(entryAddr + 0 + (BIT(15) / 4));
+					entryContent[entryContentIdx][9] = *(entryAddr + 1 + (BIT(15) / 4));
+					entryContent[entryContentIdx][10] = *(entryAddr + 2 + (BIT(15) / 4));
+			 */
+			entryContent[entryContentIdx][8] = *(entryAddr + 8192);
+			entryContent[entryContentIdx][9] = *(entryAddr + 8193);
+			entryContent[entryContentIdx][10] = *(entryAddr + 8194);
+			}
 #endif
 
-			}
-			entryContent_new = RTL865X_READ_MULTIPLECHECK_CNT-1;
+		}
+		entryContent_new = RTL865X_READ_MULTIPLECHECK_CNT-1;
 
-			needRetry = FALSE;
+		needRetry = FALSE;
 
-			for (	entryContentIdx = 1 ;
-				entryContentIdx < RTL865X_READ_MULTIPLECHECK_CNT ;
-			   	entryContentIdx ++ )
+		for (	entryContentIdx = 1 ;
+			entryContentIdx < RTL865X_READ_MULTIPLECHECK_CNT ;
+		   	entryContentIdx ++ )
+		{
+			int32 idx;
+
+			for ( idx = 0 ; idx < MAX_ENTRY_CONTENT_SIZE ; idx ++ )	// CONFIG_RTL_8198C
 			{
-				int32 idx;
-
-				for ( idx = 0 ; idx < MAX_ENTRY_CONTENT_SIZE ; idx ++ )	// CONFIG_RTL_8198C
+				if (	entryContent[entryContentIdx][idx] !=
+					entryContent[0][idx]	)
 				{
-					if (	entryContent[entryContentIdx][idx] !=
-						entryContent[0][idx]	)
-					{
-						needRetry = TRUE;
-						goto retry;
-					}
+					needRetry = TRUE;
+					goto retry;
 				}
 			}
+		}
 retry:
-		entryCompare_max_count --;
-		} while (	( needRetry == TRUE ) &&
-		      		( entryCompare_max_count > 0 ) );
+	entryCompare_max_count --;
+	} while (	( needRetry == TRUE ) &&
+	      		( entryCompare_max_count > 0 ) );
 
 	/* Update entryAddr for newer one */
 	entryAddr = &( entryContent[ entryContent_new ][0] );
@@ -481,14 +481,14 @@ int32 _rtl8651_delAsicEntry(uint32 tableType, uint32 startEidx, uint32 endEidx)
 	while ( (READ_MEM32(SWTACR) & ACTION_MASK) != ACTION_DONE );//Wait for command done
 
 #ifdef RTL865X_FAST_ASIC_ACCESS
-	{
-		register uint32 index;
+	// {
+	register uint32 index;
 
-		for( index = 0; index < _rtl8651_asicTableSize[tableType]; index++ )
-		{
-			WRITE_MEM32(TCR0+(index<<2), 0);
-		}
+	for( index = 0; index < _rtl8651_asicTableSize[tableType]; index++ )
+	{
+		WRITE_MEM32(TCR0+(index<<2), 0);
 	}
+	// }
 #else
 	WRITE_MEM32(TCR0, 0);
 	WRITE_MEM32(TCR1, 0);
@@ -603,5 +603,3 @@ int Lx1_check(void)
 	return 0;
 }
 #endif
-
-

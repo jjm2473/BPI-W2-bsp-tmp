@@ -561,6 +561,9 @@ struct ip_vs_conn {
 	void                    *app_data;      /* Application private data */
 	struct ip_vs_seq        in_seq;         /* incoming seq. struct */
 	struct ip_vs_seq        out_seq;        /* outgoing seq. struct */
+	#if defined(CONFIG_RTL_HARDWARE_NAT)
+	__u32			hw_acc; /* 1: hardware acceleration, 0: software only */
+	#endif
 
 	const struct ip_vs_pe	*pe;
 	char			*pe_data;

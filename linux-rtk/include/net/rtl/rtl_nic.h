@@ -371,6 +371,9 @@ typedef struct _ps_drv_netif_mapping_s {
 
 int32 rtl865x_changeOpMode(int mode);
 
+int rtl819x_retore_hw_ip(void);
+int get_dev_ip_mask(const char *name, unsigned int *ip, unsigned int *mask);
+
 #if defined(CONFIG_RTL_ETH_PRIV_SKB)
 __MIPS16 __IRAM_FWD int is_rtl865x_eth_priv_buf(unsigned char *head);
 void free_rtl865x_eth_priv_buf(unsigned char *head);

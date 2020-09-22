@@ -284,6 +284,41 @@ struct ieee80211_sta_vht_cap {
 	struct ieee80211_vht_mcs_info vht_mcs;
 };
 
+#define IEEE80211_HE_PPE_THRES_MAX_LEN		25
+
+/**
+ * struct ieee80211_sta_he_cap - STA's HE capabilities
+ *
+ * This structure describes most essential parameters needed
+ * to describe 802.11ax HE capabilities for a STA.
+ *
+ * @has_he: true iff HE data is valid.
+ * @he_cap_elem: Fixed portion of the HE capabilities element.
+ * @he_mcs_nss_supp: The supported NSS/MCS combinations.
+ * @ppe_thres: Holds the PPE Thresholds data.
+ */
+struct ieee80211_sta_he_cap {
+	bool has_he;
+	struct ieee80211_he_cap_elem he_cap_elem;
+	struct ieee80211_he_mcs_nss_supp he_mcs_nss_supp;
+	u8 ppe_thres[IEEE80211_HE_PPE_THRES_MAX_LEN];
+};
+
+/**
+ * struct ieee80211_sband_iftype_data
+ *
+ * This structure encapsulates sband data that is relevant for the
+ * interface types defined in @types_mask.  Each type in the
+ * @types_mask must be unique across all instances of iftype_data.
+ *
+ * @types_mask: interface types mask
+ * @he_cap: holds the HE capabilities
+ */
+struct ieee80211_sband_iftype_data {
+	u16 types_mask;
+	struct ieee80211_sta_he_cap he_cap;
+};
+
 /**
  * struct ieee80211_supported_band - frequency band definition
  *
@@ -300,6 +335,11 @@ struct ieee80211_sta_vht_cap {
  * @n_bitrates: Number of bitrates in @bitrates
  * @ht_cap: HT capabilities in this band
  * @vht_cap: VHT capabilities in this band
+ * @n_iftype_data: number of iftype data entries
+ * @iftype_data: interface type data entries.  Note that the bits in
+ *	@types_mask inside this structure cannot overlap (i.e. only
+ *	one occurrence of each type is allowed across all instances of
+ *	iftype_data).
  */
 struct ieee80211_supported_band {
 	struct ieee80211_channel *channels;
@@ -309,7 +349,82 @@ struct ieee80211_supported_band {
 	int n_bitrates;
 	struct ieee80211_sta_ht_cap ht_cap;
 	struct ieee80211_sta_vht_cap vht_cap;
+	u16 n_iftype_data;
+	const struct ieee80211_sband_iftype_data *iftype_data;
 };
+
+/**
+ * ieee80211_get_sband_iftype_data - return sband data for a given iftype
+ * @sband: the sband to search for the STA on
+ * @iftype: enum nl80211_iftype
+ *
+ * Return: pointer to struct ieee80211_sband_iftype_data, or NULL is none found
+ */
+static inline const struct ieee80211_sband_iftype_data *
+ieee80211_get_sband_iftype_data(const struct ieee80211_supported_band *sband,
+				u8 iftype)
+{
+	int i;
+
+	if (WARN_ON(iftype >= NL80211_IFTYPE_MAX))
+		return NULL;
+
+	for (i = 0; i < sband->n_iftype_data; i++)  {
+		const struct ieee80211_sband_iftype_data *data =
+			&sband->iftype_data[i];
+
+		if (data->types_mask & BIT(iftype))
+			return data;
+	}
+
+	return NULL;
+}
+
+/**
+ * ieee80211_get_he_sta_cap - return HE capabilities for an sband's STA
+ * @sband: the sband to search for the STA on
+ *
+ * Return: pointer to the struct ieee80211_sta_he_cap, or NULL is none found
+ */
+static inline const struct ieee80211_sta_he_cap *
+ieee80211_get_he_sta_cap(const struct ieee80211_supported_band *sband)
+{
+	const struct ieee80211_sband_iftype_data *data =
+		ieee80211_get_sband_iftype_data(sband, NL80211_IFTYPE_STATION);
+
+	if (data && data->he_cap.has_he)
+		return &data->he_cap;
+
+	return NULL;
+}
+
+/**
+ * wiphy_read_of_freq_limits - read frequency limits from device tree
+ *
+ * @wiphy: the wireless device to get extra limits for
+ *
+ * Some devices may have extra limitations specified in DT. This may be useful
+ * for chipsets that normally support more bands but are limited due to board
+ * design (e.g. by antennas or external power amplifier).
+ *
+ * This function reads info from DT and uses it to *modify* channels (disable
+ * unavailable ones). It's usually a *bad* idea to use it in drivers with
+ * shared channel data as DT limitations are device specific. You should make
+ * sure to call it only if channels in wiphy are copied and can be modified
+ * without affecting other devices.
+ *
+ * As this function access device node it has to be called after set_wiphy_dev.
+ * It also modifies channels so they have to be set first.
+ * If using this helper, call it before wiphy_register().
+ */
+#ifdef CONFIG_OF
+void wiphy_read_of_freq_limits(struct wiphy *wiphy);
+#else /* CONFIG_OF */
+static inline void wiphy_read_of_freq_limits(struct wiphy *wiphy)
+{
+}
+#endif /* !CONFIG_OF */
+
 
 /*
  * Wireless hardware/device configuration structures and methods
@@ -4289,6 +4404,31 @@ const struct ieee80211_reg_rule *freq_reg_info(struct wiphy *wiphy,
  * proper string representation.
  */
 const char *reg_initiator_name(enum nl80211_reg_initiator initiator);
+
+/**
+ * DOC: Internal regulatory db functions
+ *
+ */
+
+/**
+ * reg_query_regdb_wmm -  Query internal regulatory db for wmm rule
+ * Regulatory self-managed driver can use it to proactively
+ *
+ * @alpha2: the ISO/IEC 3166 alpha2 wmm rule to be queried.
+ * @freq: the freqency(in MHz) to be queried.
+ * @rule: pointer to store the wmm rule from the regulatory db.
+ *
+ * Self-managed wireless drivers can use this function to  query
+ * the internal regulatory database to check whether the given
+ * ISO/IEC 3166 alpha2 country and freq have wmm rule limitations.
+ *
+ * Drivers should check the return value, its possible you can get
+ * an -ENODATA.
+ *
+ * Return: 0 on success. -ENODATA.
+ */
+int reg_query_regdb_wmm(char *alpha2, int freq,
+			struct ieee80211_reg_rule *rule);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification

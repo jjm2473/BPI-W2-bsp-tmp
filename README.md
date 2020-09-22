@@ -1,52 +1,54 @@
 # BPI-W2-bsp
 
-Overview
-------------
-This project is for banana-pi W2 board, including U-boot 2015.7 and Linux Kernel 4.9.119.
+This is a fork from [BPI-SINOVOIP/BPI-W2-bsp](https://github.com/BPI-SINOVOIP/BPI-W2-bsp) kernel and u-boot for Banana-Pi W2 SBC.
 
-How to build both U-boot and Linux kernel
-------------------------------------------
-Get the docker image from [Sinovoip Docker Hub](https://hub.docker.com/r/sinovoip/bpi-build-linux-4.4/) , Build the source code with this docker image to avoid environment issues.
+The modifications are mainly to port the (minhng99/BPI-W2-bsp-4.4_public)[https://github.com/minhng99/BPI-W2-bsp-4.4_public] OpenWRT drivers for the HWNAT GMAC LAN port.
 
-1. Clone this code to a host PC on which the Ubuntu 16.04 is installed
-2. Run script build.sh
-```
-./build.sh
-```
-3. Select 1 to build both uboot and kernel
-4. Both new uboot and kernel will be generated in folder SD when it completes
+Code still in test mode. So use with THIS_MIGHT_CRASH option.
 
-How to update both u-boot and Linux kernel
---------------------------------------------
-If you don't have tools for banana-pi products, please run below commands to install them:
-```
-apt-get install pv
-curl -sL https://github.com/BPI-SINOVOIP/bpi-tools/raw/master/bpi-tools | sudo -E bash
-```
-1. Install SD card to this host PC, please ensure image(Ubuntu, Debian, ...) is installed on this SD card
-2. Enter folder SD which is generated after building
-3. Run below command to update u-boot and Linux kernel
-```
-bpi-update -c bpi-w2.conf -d /dev/sdX
-or
-bpi-update -d /dev/sdX
+## Building and doing my own shbangs
 
-and update u-boot (if changed or first time)
+### Toolchain
 
-bpi-bootsel 100MB/BPI-W2-720P-2k.img.gz /dev/sdX
+The toolchain and other non-related code will be phased out. I suggest using up-to-date aarch64 gcc toolchains. This code is known to work with [Linaro's 7.5.0 Aarch64 Linux GCC](https://releases.linaro.org/components/toolchain/binaries/latest-7/aarch64-linux-gnu/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz). To install and use the toolchain:
+
 ```
-4. After it completes, move SD to W2 board
-5. Press power button to activate this board
-
-How to install images on SD card
-------------------------------------------
-1. Downloading image for W2 board from http://forum.banana-pi.org/c/Banana-pi-BPI-W2/BPI-W2-image
-2. Running below command to burn this image to SD card which must be larger than 8GB
+$ wget -P /tmp/gcc-linaro/ https://releases.linaro.org/components/toolchain/binaries/latest-7/aarch64-linux-gnu/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
+$ sudo tar xvf /tmp/gcc-linaro/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz -C /opt/
 ```
-bpi-copy <image file> /dev/sd<drive letter>
 
-Example: bpi-copy ubuntu.img /dev/sdf
+You can delete the tarball after decompressing.
+
+### Building
+
+For Linux Kernel:
+
+1. Enter the linux-rtk folder and type the folowing:
+
 ```
-3. Install this SD to W2 board
-4. Press power button a few seconds to activate this board. The default baud rate of serial port is 115200, the default username/password are root/bananapi
+$ export CROSS_COMPILE=/opt/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
+$ export ARCH=arm64
+$ make distclean
+$ make mrproper
+$ make rtd129x_bpi_hwnat_defconfig
+$ make -j{number of CPUs on your machine} Image dtbs modules
+(Wait centuries)
+```
 
+## Installing this amazing porting to your beloved Banana-Pi W2
+
+The SD partition schema is a big TODO. So for now use a pre-pressed, fresh from the oven, SD card with one of the out-there images (SD card must have 100MB unpartitioned space and u-boot written with offset 0xa000). You gonna have two partitions *BPI-BOOT* and *BPI-ROOT*. Assuming mount point as */media/{your user}/* (your *BPI-BOOT* only needs the path *bananapi/bpi-w2/linux/*) do the following to install this marvelous kernel:
+
+```
+$ cp arch/arm64/boot/Image /media/{your user}/bananapi/bpi-w2/linux/uImage
+$ cp arch/arm64/boot/dts/realtek/rtd129x/rtd-1296-bananapi-w2-2GB.dtb /media/{your user}/BPI-BOOT/bananapi/bpi-w2/linux/bpi-w2.dtb
+$ sudo make INSTALL_MOD_PATH=/media/{your user}/BPI-ROOT modules_install ARCH=arm64 CROSS_COMPILE=/opt/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
+```
+
+Umount those those partitions, BUDDY! And enjoy the unlimited world of double LAN. Party, enjoy, live, eat cake.
+
+On the releases I've shared an Debian Buster image. Is very lean, with some useful tools.
+
+## HANDBONNING capabilities
+
+Not available!

@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/kthread.h>
+#include <linux/kmemleak.h>
 
 
 #include "rtk_rpc.h"
@@ -503,7 +504,7 @@ static int acpu_remote_alloc_thread(void * p)
 	}
 	return 0;
 }
-#endif	
+#endif
 #ifdef CONFIG_ION_RTK
 #ifdef CONFIG_ARCH_RTD13xx
 static int vcpu_remote_alloc_thread(void * p)
@@ -528,7 +529,7 @@ static int vcpu_remote_alloc_thread(void * p)
 	return 0;
 }
 #endif
-#endif	
+#endif
 
 /*
  * This function may be called by tasklet and rpc_intr_read(),
@@ -698,12 +699,12 @@ int rpc_intr_init(void)
 #ifdef CONFIG_ION_RTK
 	struct ion_handle *handle = NULL;
 	ion_phys_addr_t phys_addr;
-#endif	
+#endif
 	size_t alloc_val;
 #ifdef CONFIG_ION_RTK
 	fw_rpc_ion_client = ion_client_create(rtk_phoenix_ion_device,
 						"FW_REMOTE_ALLOC");
-#endif	
+#endif
 	/* Create corresponding structures for each device. */
 	rpc_intr_devices = (RPC_DEV *) AVCPU2SCPU(RPC_INTR_RECORD_ADDR);
 
@@ -771,7 +772,7 @@ int rpc_intr_init(void)
 			}
 		}
 	}
-#ifdef CONFIG_ION_RTK	
+#ifdef CONFIG_ION_RTK
 	init_waitqueue_head(&acpu_r_program_waitQueue);
 	acpu_r_program_kthread = kthread_run(acpu_remote_alloc_thread, (void *)&j, "acpu_r_program");
 
@@ -779,7 +780,7 @@ int rpc_intr_init(void)
 	init_waitqueue_head(&vcpu_r_program_waitQueue);
 	vcpu_r_program_kthread = kthread_run(vcpu_remote_alloc_thread, (void *)&j, "vcpu_r_program");
 #endif
-#endif	
+#endif
 	is_init = 1;
 	rpc_intr_is_paused = 0;
 	rpc_intr_is_suspend = 0;

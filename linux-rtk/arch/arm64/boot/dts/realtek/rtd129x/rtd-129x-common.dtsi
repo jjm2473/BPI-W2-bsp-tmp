@@ -280,9 +280,6 @@
 			"clk_en_i2c1",
 			"clk_en_etn_250m",
 			"clk_en_etn_sys";
-		ignore-unused-clocks =
-			"clk_en_etn_250m",
-			"clk_en_etn_sys";
 	};
 
 	cc: clock-controller@98000000 {
@@ -362,4 +359,3 @@
 		#power-domain-cells = <1>;
 	};
 };
-

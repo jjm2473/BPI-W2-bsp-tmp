@@ -19,6 +19,11 @@
 
 #include <linux/version.h>
 
+#define INFINITE_DEBUG
+#ifdef INFINITE_DEBUG
+#include <linux/kgdb.h>
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
 #define DRV_RELDATE		"Jan 27, 2014"
 #include <linux/kconfig.h>
@@ -222,13 +227,13 @@ extern int rtl_initMcastImprove(void);
 #include <soc/realtek/rtk_cpu.h>
 #include "AsicDriver/rtl865x_asicBasic.h"
 
-#define RTL_DEBUG	1
-#ifdef RTL_DEBUG
+// #define RTL_DEBUG	1
+// #ifdef RTL_DEBUG
 #define DBG(fmt, ...) pr_err("%s:%d: " fmt "\n", \
 				__func__, __LINE__, ## __VA_ARGS__)
-#else
-#define DBG(fmt, ...)
-#endif
+// #else
+// #define DBG(fmt, ...)
+// #endif
 
 void __iomem *rtl_hwnat_mmio;
 void __iomem *rtl_hwnat_clk_mmio;
@@ -252,7 +257,7 @@ static uint8 hwnat_gpio_link_led;
 unsigned int RTL_LANPORT_MASK = RTL_DEF_LANPORT_MASK;
 #define RTL_SWNAT	1
 #if defined(RTL_SWNAT)
-bool rtl_hwnat_enable = false;
+extern bool rtl_hwnat_enable;
 
 void ntohl_array(u32 *org_buf, u32 *dst_buf, unsigned int words)
 {
@@ -1011,10 +1016,6 @@ static struct rtl865x_vlanConfig vlanconfig[] = {
 	{	RTL_DRV_LAN_P5_NETIF_NAME,	1,	IF_ETHER,	RTL_WANVLANID,		RTL_WAN_FID,		RTL_WANPORT_MASK,		RTL_WANPORT_MASK,		1500,	{ { 0x00, 0x12, 0x34, 0x56, 0x78, 0x94 } }, 0 },
 	{	RTL_DRV_LAN_P1_NETIF_NAME,	0,	IF_ETHER,	RTL_LANVLANID,		RTL_LAN_FID,		RTL_LANPORT_MASK_1,		RTL_LANPORT_MASK_1,		1500,	{ { 0x00, 0x12, 0x34, 0x56, 0x78, 0x95 } }, 0 },
 	{	RTL_DRV_LAN_P2_NETIF_NAME,	0,	IF_ETHER,	RTL_LANVLANID,		RTL_LAN_FID,		RTL_LANPORT_MASK_2,		RTL_LANPORT_MASK_2,		1500,	{ { 0x00, 0x12, 0x34, 0x56, 0x78, 0x95 } }, 0 },
-#if 0
-	{	RTL_DRV_LAN_P3_NETIF_NAME,	0,	IF_ETHER,	RTL_LANVLANID,		RTL_LAN_FID,		RTL_LANPORT_MASK_3,		RTL_LANPORT_MASK_3,		1500,	{ { 0x00, 0x12, 0x34, 0x56, 0x78, 0x95 } }, 0 },
-	{	RTL_DRV_LAN_P0_NETIF_NAME,	0,	IF_ETHER,	RTL_LANVLANID,		RTL_LAN_FID,		RTL_LANPORT_MASK_0,		RTL_LANPORT_MASK_0,		1500,	{ { 0x00, 0x12, 0x34, 0x56, 0x78, 0x95 } }, 0 },
-#endif
 #else /* CONFIG_RTL_CPU_TAG */
 #if defined(CONFIG_RTL_WAN_MAC5)
 	{	RTL_DRV_LAN_P5_NETIF_NAME,	0,	IF_ETHER,	RTL_LANVLANID,		RTL_LAN_FID,		RTL_LANPORT_MASK_5,		RTL_LANPORT_MASK_5,		1500,	{ { 0x00, 0x12, 0x34, 0x56, 0x78, 0x95 } }, 0 },
@@ -3782,6 +3783,8 @@ void tx_done_callback(void *skb)
 				skb_reserve(((struct sk_buff *)skb),
 					RTL_PRIV_DATA_SIZE);
 #endif
+
+				printk("otavio - Tx callback malandrico!\n");
 				/* reserve for 4 byte alignment */
 				skb_reserve(((struct sk_buff *)skb), RX_OFFSET);
 				/* enable irq */
@@ -8359,13 +8362,14 @@ __IRAM_GEN static inline void rtl_link_change_interrupt_process(unsigned int
 
 __MIPS16 __IRAM_FWD irqreturn_t interrupt_isr(int irq, void *dev_instance)
 {
-	struct net_device *dev = dev_instance;
+	struct net_device *dev = (struct net_device *)dev_instance;
 	struct dev_priv *cp;
 	unsigned int status, old_status;
 	cp = NETDRV_PRIV(dev);
 	status = REG32(CPUIISR);
 	old_status = status;
 	status &= REG32(CPUIIMR);
+
 
 #ifdef CONFIG_RTL_819X_SWCORE
 	cnt_swcore++;
@@ -8386,7 +8390,6 @@ __MIPS16 __IRAM_FWD irqreturn_t interrupt_isr(int irq, void *dev_instance)
 #endif
 
 	rtl_rx_interrupt_process(status, cp);
-
 	rtl_tx_interrupt_process(status, cp);
 
 #if defined(CONFIG_RTL_IGMP_SNOOPING) || defined(CONFIG_RTL_LINKCHG_PROCESS) || defined(CONFIG_RTL_PHY_PATCH) || defined(CONFIG_RTL_ETH_802DOT1X_SUPPORT) || defined(CONFIG_RTL_8198C_10M_REFINE)
@@ -8413,7 +8416,6 @@ static int rtl865x_init_hw(void)
 	ret = RTL_swNic_init(rxRingSize, mbufRingSize, txRingSize, MBUF_LEN);
 
 	if (ret != SUCCESS) {
-		printk("819x-nic: swNic_init failed!\n");
 		return FAILED;
 	}
 	return SUCCESS;
@@ -9454,6 +9456,7 @@ static int re865x_open(struct net_device *dev)
 	unsigned int port;
 #endif /* defined(CONFIG_RTD_1295_HWNAT) */
 
+		printk("otavio - Open the doors to the re865x dicksucker!\n");
 	cp = NETDRV_PRIV(dev);
 #ifdef CONFIG_RTL_HW_VLAN_SUPPORT_HW_NAT
 	/* printk("re865x_open dev=%s , id = %d \n",dev->name,cp->id); */
@@ -11275,7 +11278,6 @@ __MIPS16 __IRAM_FWD
 #if defined(CONFIG_SMP)
 			SMP_UNLOCK_ETH_XMIT(flags);
 #endif
-
 			return 0;
 		}
 	}
@@ -11323,6 +11325,9 @@ __MIPS16 __IRAM_FWD
 	tx_skb = nicTx.out_skb = insert_vlan_tag(skb, cp->id);
 	if (tx_skb == NULL) {
 		dev_kfree_skb_any(skb);
+#if defined(CONFIG_SMP)
+		SMP_UNLOCK_ETH_XMIT(flags);
+#endif
 		return 0;
 	}
 #endif
@@ -11343,6 +11348,9 @@ __MIPS16 __IRAM_FWD
 		tx_skb = nicTx.out_skb = insert_vlan_tag(skb, RTL_WANVLANID);
 		if (tx_skb == NULL) {
 			/* dev_kfree_skb_any(skb); */
+#if defined(CONFIG_SMP)
+			SMP_UNLOCK_ETH_XMIT(flags);
+#endif
 			return 0;
 		}
 	}
@@ -11539,6 +11547,9 @@ __MIPS16 __IRAM_FWD
 	tx_retry_cnt = 0;
 	while (1) {
 		/* do not suitable to use RTL_swNic_send */
+#if defined(CONFIG_SMP)
+		SMP_UNLOCK_ETH_XMIT(flags);
+#endif
 #if defined(CONFIG_RTD_1295_HWNAT)
 #if defined(CONFIG_RTL_SWITCH_NEW_DESCRIPTOR)
 #if (defined(CONFIG_RTL_TSO) || defined(CONFIG_RTL_GSO))
@@ -11547,11 +11558,12 @@ __MIPS16 __IRAM_FWD
 			retval = _New_swNic_send_tso_sg((void *)tx_skb,
 				(void *)mapping, tx_skb->len, &nicTx);
 		} else {
-			retval = _New_swNic_send((void *)tx_skb,
+			// retval = _New_swNic_send((void *)tx_skb,
+			retval = New_swNic_send((void *)tx_skb,
 				(void *)mapping, tx_skb->len, &nicTx);
 		}
 #else
-		retval = _New_swNic_send((void *)tx_skb, (void *)mapping,
+		retval = New_swNic_send((void *)tx_skb, (void *)mapping,
 			tx_skb->len, &nicTx);
 #endif
 #else
@@ -11588,7 +11600,9 @@ __MIPS16 __IRAM_FWD
 #endif
 #endif
 #endif /* defined(CONFIG_RTD_1295_HWNAT) */
-
+#if defined(CONFIG_SMP)
+		SMP_LOCK_ETH_XMIT(flags);
+#endif
 		if (retval >= 0)
 			break;
 
@@ -14053,6 +14067,10 @@ int __init re865x_probe(void)
 	int dt_tmp;
 	unsigned dt_array[6];
 
+#ifdef INFINITE_DEBUG
+	printk("otavio - the infinite debugging initiate...INFINIIIIIITE!\n");
+#endif
+
 	rtl819x_pdev = pdev;
 	_rtl86xx_dev.plat_dev = pdev;
 	/* initialize memory map of registers and IRQ */
@@ -14666,7 +14684,7 @@ int __init re865x_probe(void)
 			create_proc_entry("up_event", 0, res_stats_root);
 		if (rtk_link_event_entry) {
 			rtk_link_event_entry->read_proc = rtk_link_event_read;
-			rtk_link_event_entry->write_proc = rtk_link_event_write;
+			rtk_link_event_entry->write_proc = ;
 		}
 
 		if ((rtk_link_status_entry =
@@ -15854,7 +15872,7 @@ static struct platform_driver rtd1295_nic_driver = {
 		},
 };
 
-extern rtd129x_hwnat_reset_nat(struct device *dev);
+// extern rtd129x_hwnat_reset_nat(struct device *dev);
 void rtd129x_nat_driver_restart(void)
 {
 	struct net_device *ndev;
@@ -15883,7 +15901,7 @@ void rtd129x_nat_driver_restart(void)
 
 	rtl_hwnat_enable_orig = rtl_hwnat_enable;
 	rtl_hwnat_enable = false;
-	rtd129x_hwnat_reset_nat(&_rtl86xx_dev.pdev->dev);
+	// rtd129x_hwnat_reset_nat(&_rtl86xx_dev.pdev->dev);
 	msleep(10);
 
 
