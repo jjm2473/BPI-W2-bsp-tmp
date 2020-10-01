@@ -201,7 +201,7 @@ extern int rtl_initMcastImprove(void);
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
 #include <linux/workqueue.h>
-#include <soc/realtek/rtd129x_cpu.h>
+#include <soc/realtek/rtk_cpu.h>
 #include "AsicDriver/rtl865x_asicBasic.h"
 
 #define RTL_DEBUG	1

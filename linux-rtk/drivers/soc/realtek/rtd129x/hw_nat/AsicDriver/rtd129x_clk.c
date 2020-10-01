@@ -7,7 +7,7 @@
 #include <linux/delay.h>
 #include <net/rtl/rtl_types.h>
 #include <net/rtl/rtl_glue.h>
-#include <soc/realtek/rtd129x_cpu.h>
+#include <soc/realtek/rtk_cpu.h>
 #include "rtl865x_asicBasic.h"
 #include "rtl865x_asicCom.h"
 #include "rtl865x_asicL2.h"

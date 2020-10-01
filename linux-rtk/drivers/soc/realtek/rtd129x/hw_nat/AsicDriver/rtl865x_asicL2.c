@@ -30,7 +30,7 @@
 #include <linux/gpio.h>
 #endif
 #if defined(CONFIG_RTD_1295_HWNAT)
-#include <soc/realtek/rtd129x_cpu.h>
+#include <soc/realtek/rtk_cpu.h>
 //#define RTL_DEBUG	1
 #ifdef RTL_DEBUG
 #define DBG(fmt, ...) printk(KERN_ERR "%s:%d: " fmt "\n", \
