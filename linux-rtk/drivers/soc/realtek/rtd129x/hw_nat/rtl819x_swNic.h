@@ -638,6 +638,9 @@ int32 _New_swNic_send_tso_sg(struct sk_buff *skb, void *output, uint32 len, rtl_
 
 uint32 rtk_get_vlan_tagmask(uint16 vid); // declared in rtl_nic.c
 
+int32 _New_swNic_send(void *skb, void *output, uint32 len,
+	rtl_nicTx_info *nicTx);
+
 extern uint32  size_of_cluster;
 
 #endif

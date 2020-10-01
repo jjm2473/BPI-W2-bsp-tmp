@@ -549,33 +549,33 @@ int rtl_hwnat_timer_update(struct nf_conn *ct)
 }
 #endif
 
-extern int get_dev_ip_mask(const char *name, unsigned int *ip, unsigned int *mask);
-// {
-// 	struct in_device *in_dev;
-// 	struct net_device *landev;
-// 	struct in_ifaddr *ifap = NULL;
-//
-// 	if ((name == NULL) || (ip == NULL) || (mask == NULL)) {
-// 		return -1;
-// 	}
-//
-// 	if ((landev = __dev_get_by_name(&init_net, name)) != NULL) {
-// 		in_dev = (struct in_device *)(landev->ip_ptr);
-// 		if (in_dev != NULL) {
-// 			for (ifap = in_dev->ifa_list; ifap != NULL;
-// 				ifap = ifap->ifa_next) {
-// 				if (strcmp(name, ifap->ifa_label) == 0) {
-// 					*ip = ifap->ifa_address;
-// 					*mask = ifap->ifa_mask;
-// 					return 0;
-// 				}
-// 			}
-//
-// 		}
-// 	}
-//
-// 	return -1;
-// }
+int get_dev_ip_mask(const char *name, unsigned int *ip, unsigned int *mask)
+{
+	struct in_device *in_dev;
+	struct net_device *landev;
+	struct in_ifaddr *ifap = NULL;
+
+	if ((name == NULL) || (ip == NULL) || (mask == NULL)) {
+		return -1;
+	}
+
+	if ((landev = __dev_get_by_name(&init_net, name)) != NULL) {
+		in_dev = (struct in_device *)(landev->ip_ptr);
+		if (in_dev != NULL) {
+			for (ifap = in_dev->ifa_list; ifap != NULL;
+				ifap = ifap->ifa_next) {
+				if (strcmp(name, ifap->ifa_label) == 0) {
+					*ip = ifap->ifa_address;
+					*mask = ifap->ifa_mask;
+					return 0;
+				}
+			}
+
+		}
+	}
+
+	return -1;
+}
 
 #if defined(CONFIG_RTL_IPTABLES_FAST_PATH) || defined(CONFIG_RTL_HARDWARE_NAT) || defined(CONFIG_RTL_WLAN_DOS_FILTER) || defined(CONFIG_RTL_BATTLENET_ALG) || defined(CONFIG_RTL_USB_IP_HOST_SPEEDUP) || defined(CONFIG_HTTP_FILE_SERVER_SUPPORT) || defined(CONFIG_RTL_USB_UWIFI_HOST_SPEEDUP)
 unsigned int _br0_ip;
@@ -3089,22 +3089,20 @@ int rtl_flush_extern_ip(void)
 	return SUCCESS;
 }
 
-#if defined(CONFIG_RTL_HARDWARE_NAT)
-extern int rtl819x_retore_hw_ip(void);
-// {
-// 	int i;
-//
-// 	//found masq entry
-// 	for (i = 0; i < RTL_MULTIPLE_WAN_NUM; i++) {
-// 		if (rtl_masq_info[i].valid == 1 && rtl_masq_info[i].ipAddr) {
-// 			rtl865x_addIp(0, htonl(rtl_masq_info[i].ipAddr),
-// 				IP_TYPE_NAPT);
-// 		}
-// 	}
-//
-// 	return SUCCESS;
-// }
-#endif /* CONFIG_RTL_HARDWARE_NAT */
+int rtl819x_retore_hw_ip(void)
+{
+	int i;
+
+	//found masq entry
+	for (i = 0; i < RTL_MULTIPLE_WAN_NUM; i++) {
+		if (rtl_masq_info[i].valid == 1 && rtl_masq_info[i].ipAddr) {
+			rtl865x_addIp(0, htonl(rtl_masq_info[i].ipAddr),
+				IP_TYPE_NAPT);
+		}
+	}
+
+	return SUCCESS;
+}
 
 #if defined(CONFIG_RTL_REDIRECT_ACL_SUPPORT_FOR_ISP_MULTI_WAN)
 void rtl_sync_extIp_to_masq_info(const char *name,

@@ -249,7 +249,7 @@ void ntohl_array(u32 *org_buf, u32 *dst_buf, unsigned int words)
 #else /* defined(RTL_SWNAT) */
 extern bool rtl_hwnat_enable;
 #endif /* defined(RTL_SWNAT) */
-extern void rtd129x_hwnat_clk_init(void);
+extern void rtd129x_hwnat_clk_init(struct device *dev);
 extern void rtk_polling_mac0_lnk_status(void);
 #define CHECK_IF_HWNAT_READY if (!rtl_hwnat_enable) return SUCCESS
 #endif /* defined(CONFIG_RTD_1295_HWNAT) */
@@ -630,7 +630,6 @@ int rtl865x_setMultiCastSrcMac(unsigned char *srcMac);
 
 #define RTK_WRT_MAC_FROM_HWSET 1	/* mark_wrt */
 
-int rtl865x_reinitSwitchCore(void);
 int32 phyRegTest_init(void);
 int rtl865x_creatReInitSwitchCoreProc(void);
 extern void FullAndSemiReset(void);
@@ -675,6 +674,7 @@ static int32 rtl_process_hw_l3_default_router(void);
 
 int32 rtl865x_init(void);
 int32 rtl865x_config(struct rtl865x_vlanConfig vlanconfig[]);
+int rtl865x_reinitSwitchCore(void);
 
 /* These identify the driver base version and may not be removed. */
 MODULE_DESCRIPTION("RealTek RTL-8650 series 10/100 Ethernet driver");
@@ -3934,6 +3934,7 @@ int re865x_getIpv6TransportProtocol(struct ipv6hdr *ipv6h)
 	return -1;
 }
 #endif
+#if defined(CONFIG_RTL_IGMP_SNOOPING) || defined(CONFIG_RTL_MLD_SNOOPING)
 static inline void re865x_relayTrappedMCast(struct sk_buff *skb,
 	unsigned int vid, unsigned int mcastFwdPortMask,
 	unsigned int keepOrigSkb)
@@ -4034,6 +4035,7 @@ static inline void re865x_relayTrappedMCast(struct sk_buff *skb,
 	}
 	return;
 }
+#endif /* defined(CONFIG_RTL_IGMP_SNOOPING) || defined(CONFIG_RTL_MLD_SNOOPING) */
 
 extern void rtl865x_igmpLinkStatusChangeCallback(uint32 moduleIndex,
 	rtl_igmpPortInfo_t *portInfo);
@@ -4664,7 +4666,7 @@ __MIPS16 int rtl_MulticastRxCheck(struct sk_buff *skb, rtl_nicRx_info *info,
 #ifdef CONFIG_RTL_VLAN_8021Q
 				if (linux_vlan_enable
 					&& linux_vlan_hw_support_enable) {
-#if definedCONFIG_RT_MULTIPLE_BR_SUPPORT
+#if defined CONFIG_RT_MULTIPLE_BR_SUPPORT
 					if (is_nat_wan_vlan(vid)) {
 						/* special case: lan-wan bridge and lan-wan nat have same vid */
 						for (i = 0;
@@ -10223,8 +10225,13 @@ static inline int rtl_pstProcess_xmit(struct dev_priv *cp,
 #endif
 	/*jwj: directly use skb->dev may more safer. */
 	/* cp->dev->trans_start = jiffies; */
+	#if defined(CONFIG_RTD_1295_HWNAT) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
+	if (dev)
+		netif_trans_update(dev);
+	#else
 	if (dev)
 		dev->trans_start = jiffies;
+	#endif /* CONFIG_RTD_1295_HWNAT */
 
 	return SUCCESS;
 }
@@ -13677,7 +13684,7 @@ int __init re865x_probe(void)
 
 	/* Init RGMII/SGMII/PHY clock */
 	/* Init ASIC table */
-	rtd129x_hwnat_clk_init();
+	rtd129x_hwnat_clk_init(&pdev->dev);
 
 	/* enable interrupt migration
 	 * timeout = 800 * 512ns = 400us
@@ -15284,7 +15291,7 @@ static int rtd129x_nat_resume(struct device *dev)
 	}
 
 	/* Enable clk and release reset module */
-	rtd129x_hwnat_clk_init();
+	rtd129x_hwnat_clk_init(dev);
 
 	/* reset driver */
 	rtd129x_restore_regs();

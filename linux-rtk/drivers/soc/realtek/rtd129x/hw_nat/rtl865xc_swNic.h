@@ -500,6 +500,7 @@ extern unsigned char *alloc_rx_buf(void **skb, int buflen);
 extern unsigned char *alloc_rx_buf_init(void **skb, int buflen);
 
 #if defined(CONFIG_RTD_1295_HWNAT)
+#include <linux/netdevice.h>
 static inline void free_rx_buf(void *skb)
 {
 	dev_kfree_skb_any((struct sk_buff *)skb);

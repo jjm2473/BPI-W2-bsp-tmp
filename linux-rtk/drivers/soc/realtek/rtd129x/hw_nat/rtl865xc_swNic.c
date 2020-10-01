@@ -2701,7 +2701,7 @@ int32 rtl_dumpMbufRing(struct seq_file *s)
 			"mbuf[%03d]: 0x%p: ==> pkthdr[0x%p] ==> skb[0x%p]%s%s%s\n",
 			idx, mbuf, mbuf->m_pkthdr, mbuf->skb,
 			(rxMbufRing[idx] & DESC_OWNED_BIT) == DESC_RISC_OWNED ? " :CPU" : " :SWCORE",
-			(rxMbufRing[idx] & DESC_WRAP) == DESC_ENG_OWNED ? " :WRAP" : "",
+			(rxMbufRing[idx] & DESC_WRAP) == DESC_WRAP ? " :WRAP" : "",
 			idx == currRxMbufDescIndex ? "  <===currIdx" : "");
 		if ((rxMbufRing[idx] & DESC_WRAP) != 0)
 			break;

@@ -141,10 +141,10 @@ void rtd129x_hwnat_set_sata_pllddsa(void)
 	mdelay(50);
 }
 
-void rtd129x_hwnat_set_pllddsb(void)
+static void rtd129x_hwnat_set_pllddsb(struct device *dev)
 {
 	uint32 val;
-	struct clk *clk_pllddsb = clk_get(NULL, "pll_ddsb");
+	struct clk *clk_pllddsb = clk_get(dev, "pll_ddsb");
 
 	/* check if it is alreay set */
 	val = CLK_SYS_READ_MEM32(SYS_PLL_DDSB2);
@@ -174,18 +174,18 @@ void rtd129x_hwnat_set_pllddsb(void)
 	clk_prepare_enable(clk_pllddsb);
 }
 
-void rtd129x_hwnat_set_etn_clk(void)
+static void rtd129x_hwnat_set_etn_clk(struct device *dev)
 {
 	uint32 val;
 	/* GET clock */
-	struct clk *clk_en_nat = clk_get(NULL, "nat");
-	struct clk *clk_en_etn_sys = clk_get(NULL, "etn_sys");
-	struct clk *clk_en_etn_250m = clk_get(NULL, "etn_250m");
+	struct clk *clk_en_nat = clk_get(dev, "nat");
+	struct clk *clk_en_etn_sys = clk_get(dev, "etn_sys");
+	struct clk *clk_en_etn_250m = clk_get(dev, "etn_250m");
 
 	/* GET reset control */
-	struct reset_control *rstc_gmac = rstc_get("gmac");
-	struct reset_control *rstc_gphy = rstc_get("gphy");
-	struct reset_control *rstc_nat = rstc_get("nat");
+	struct reset_control *rstc_gmac = reset_control_get(dev, "gmac");
+	struct reset_control *rstc_gphy = reset_control_get(dev, "gphy");
+	struct reset_control *rstc_nat = reset_control_get(dev, "nat");
 
 	/* check if it is alreay set */
 	#if 1
@@ -761,7 +761,7 @@ static uint32_t rtd129x_switch_init(void)
 	return ret;
 }
 
-static uint32_t rtd129x_system_init(void)
+static uint32_t rtd129x_system_init(struct device *dev)
 {
 	uint32_t val;
 	uint32_t i;
@@ -771,8 +771,8 @@ static uint32_t rtd129x_system_init(void)
 	if ((val != RTK1295_CPU_ID) && (val != RTK1296_CPU_ID))
 		return val;
 
-	rtd129x_hwnat_set_pllddsb();
-	rtd129x_hwnat_set_etn_clk();
+	rtd129x_hwnat_set_pllddsb(dev);
+	rtd129x_hwnat_set_etn_clk(dev);
 
 	//MAC0
 	if (hwnat_mac0_enable > 0) {
@@ -867,19 +867,20 @@ static void rtd129x_nic_setting(void)
 }
 #endif
 
-void rtd129x_hwnat_clk_init(void)
+void rtd129x_hwnat_clk_init(struct device *dev)
 {
 	uint32_t ret = 0;
 	struct power_control *pctrl = power_control_get("pctrl_nat");
 
 	power_control_power_on(pctrl);
 
-	if ((ret = rtd129x_system_init()) != 0) {
+	if ((ret = rtd129x_system_init(dev)) != 0) {
 		printk("Unknown RTD129X chip, ID = 0x%08x\n", ret);
 		return;
 	}
-	else
+	else {
 		DBG("rtd129x_system_init() ok!");
+        }
 
 	if ((ret = rtd129x_switch_init()) != 0) {
 		switch(ret) {
@@ -894,8 +895,9 @@ void rtd129x_hwnat_clk_init(void)
 		}
 		return;
 	}
-	else
+	else {
 		DBG("rtd129x_switch_init() ok!");
+        }
 
 #if 0
 	rtd129x_nic_setting();
