@@ -13623,11 +13623,11 @@ int __init re865x_probe(void)
 	DBG("RGMII voltage = %d (1:1.8V, 2:2.5V, 3:3.3V)", dt_tmp);
 	hwnat_rgmii_voltage = dt_tmp;
 
-	of_property_read_u32(pdev->dev.of_node, "rgmii_tx_delay", &dt_tmp);
+	of_property_read_u32(pdev->dev.of_node, "rgmii0_tx_delay", &dt_tmp);
 	DBG("RGMII TX delay = %d (0.5 ns per step)", dt_tmp);
 	hwnat_rgmii_tx_delay = dt_tmp;
 
-	of_property_read_u32(pdev->dev.of_node, "rgmii_rx_delay", &dt_tmp);
+	of_property_read_u32(pdev->dev.of_node, "rgmii0_rx_delay", &dt_tmp);
 	DBG("RGMII RX delay = %d (0.5 ns per step)", dt_tmp);
 	hwnat_rgmii_rx_delay = dt_tmp;
 

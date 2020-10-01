@@ -48,17 +48,17 @@ void rtd129x_hwnat_set_sata_pllddsa(void)
 {
 	uint32 val;
 	/* GET reset control */
-	struct reset_control *rstc_sata_0 = rstc_get("rstn_sata_0");
-	struct reset_control *rstc_sata_phy_0 = rstc_get("rstn_sata_phy_0");
-	struct reset_control *rstc_sata_phy_pow_0 = rstc_get("rstn_sata_phy_pow_0");
+	struct reset_control *rstc_sata_0 = rstc_get("sata_0");
+	struct reset_control *rstc_sata_phy_0 = rstc_get("sata_phy_0");
+	struct reset_control *rstc_sata_phy_pow_0 = rstc_get("sata_phy_pow_0");
 	struct reset_control *rstc_sata_func_exist_0 = rstc_get("sata_func_exist_0");
 	struct reset_control *rstc_sds_phy = rstc_get("rstn_sds_phy");
 
 	/* GET clock */
-	struct clk *clk_en_sata_0 = clk_get(NULL, "clk_en_sata_0");
-	struct clk *clk_en_sata_alive_0 = clk_get(NULL, "clk_en_sata_alive_0");
-	struct clk *clk_en_sata_1 = clk_get(NULL, "clk_en_sata_1");
-	struct clk *clk_en_sata_alive_1 = clk_get(NULL, "clk_en_sata_alive_1");
+	struct clk *clk_en_sata_0 = clk_get(NULL, "sata_0");
+	struct clk *clk_en_sata_alive_0 = clk_get(NULL, "sata_alive_0");
+	struct clk *clk_en_sata_1 = clk_get(NULL, "sata_1");
+	struct clk *clk_en_sata_alive_1 = clk_get(NULL, "sata_alive_1");
 
 	/* release SATA0 reset */
 	#if 1
@@ -178,14 +178,14 @@ void rtd129x_hwnat_set_etn_clk(void)
 {
 	uint32 val;
 	/* GET clock */
-	struct clk *clk_en_nat = clk_get(NULL, "clk_en_nat");
-	struct clk *clk_en_etn_sys = clk_get(NULL, "clk_en_etn_sys");
-	struct clk *clk_en_etn_250m = clk_get(NULL, "clk_en_etn_250m");
+	struct clk *clk_en_nat = clk_get(NULL, "nat");
+	struct clk *clk_en_etn_sys = clk_get(NULL, "etn_sys");
+	struct clk *clk_en_etn_250m = clk_get(NULL, "etn_250m");
 
 	/* GET reset control */
-	struct reset_control *rstc_gmac = rstc_get("iso_rstn_gmac");
-	struct reset_control *rstc_gphy = rstc_get("iso_rstn_gphy");
-	struct reset_control *rstc_nat = rstc_get("rstn_nat");
+	struct reset_control *rstc_gmac = rstc_get("gmac");
+	struct reset_control *rstc_gphy = rstc_get("gphy");
+	struct reset_control *rstc_nat = rstc_get("nat");
 
 	/* check if it is alreay set */
 	#if 1
