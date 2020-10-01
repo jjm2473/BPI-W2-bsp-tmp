@@ -6,11 +6,6 @@
 * Abstract :
 * Author : Hyking Liu (Hyking_liu@realsil.com.tw)
 * -------------------------------------------------------
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
 */
 #include <net/rtl/rtl_types.h>
 #include <net/rtl/rtl_glue.h>
@@ -19,13 +14,6 @@
 #include <linux/delay.h>
 #if defined(CONFIG_RTD_1295_HWNAT)
 #include <linux/uaccess.h>
-#if defined(CONFIG_RTL_836X_SUPPORT)
-#include <linux/spinlock.h>
-#include "rtl836x/rtk_switch.h"
-#include "rtl836x/rtk_types.h"
-#include "rtl836x/stat.h"
-#include "rtl836x/rtk_rtl8367.h"
-#endif /* CONFIG_RTL_836X_SUPPORT */
 #endif /* defined(CONFIG_RTD_1295_HWNAT) */
 
 #include <net/rtl/rtl865x_netif.h>
@@ -89,11 +77,6 @@ extern netdev_features_t tso_feature;
 #if defined(CONFIG_RTL_SWITCH_NEW_DESCRIPTOR)
 #include "rtl819x_swNic.h"
 #endif
-
-#if defined(CONFIG_RTD_1295_HWNAT)
-/* debug NAPT hash entries */
-#include <net/rtl/rtl865x_nat.h>
-#endif /* CONFIG_RTD_1295_HWNAT */
 
 #include "common/rtl865x_vlan.h"
 extern int32 rtl865xC_setAsicEthernetForceModeRegs(uint32 port,
@@ -228,7 +211,11 @@ static struct proc_dir_entry *l3v6_entry, *arp6_entry, *nexthop6_entry,
 #define	PROC_READ_RETURN_VALUE		0
 #endif
 
+#if defined(CONFIG_RTD_1295_HWNAT)
 static void ntohl_array(u32 *org_buf, u32 *dst_buf, unsigned int words)
+#else /* defined(CONFIG_RTD_1295_HWNAT) */
+void ntohl_array(u32 *org_buf, u32 *dst_buf, unsigned int words)
+#endif /* defined(CONFIG_RTD_1295_HWNAT) */
 {
 	int i = 0;
 
@@ -5573,7 +5560,7 @@ struct file_operations acl_single_seq_file_operations = {
 
 #if defined(CONFIG_RTL_IGMP_SNOOPING)
 extern int igmp_show(struct seq_file *s, void *v);
-extern ssize_t igmp_write(struct file *file, const char __user *buffer,
+extern int igmp_write(struct file *file, const char __user *buffer,
 	size_t count, loff_t *data);
 int igmp_single_open(struct inode *inode, struct file *file)
 {
@@ -6631,7 +6618,6 @@ static int32 rtl865x_proc_hw_mcast_read(struct seq_file *s, void *v)
 		_rtl865x_getAddMcastOpCnt(), _rtl865x_getDelMcastOpCnt(),
 		_rtl865x_getForceAddMcastOpCnt());
 #else
-	seq_printf(s, "%s\n", "Hardware multicast version: v3.4.11D_DHC_v_1");
 	seq_printf(s, "%s\n", "ASIC Multicast Table:");
 
 	for (entry = 0; entry < RTL8651_MULTICASTTBL_SIZE; entry++) {
@@ -7534,7 +7520,7 @@ int32 napt_show(struct seq_file *s, void *v)
 			continue;
 
 		if (asic_tcpudp.isValid == 1 || asic_tcpudp.isDedicated == 1) {
-/* len += seq_printf(s, "[%4d] %d.%d.%d.%d:%d {V,D}={%d,%d} col1(%d) col2(%d) static(%d) tcp(%d)\n", */
+/* seq_printf(s, "[%4d] %d.%d.%d.%d:%d {V,D}={%d,%d} col1(%d) col2(%d) static(%d) tcp(%d)\n", */
 /* idx, */
 /* asic_tcpudp.insideLocalIpAddr>>24, (asic_tcpudp.insideLocalIpAddr&0x00ff0000) >> 16, */
 /* (asic_tcpudp.insideLocalIpAddr&0x0000ff00)>>8, asic_tcpudp.insideLocalIpAddr&0x000000ff, */
@@ -9467,621 +9453,6 @@ errout:
 	return len;
 }
 
-/* debug NAPT hash entries */
-static int32 rtl_test_napt_mode = 0;
-
-static void rtl_fill_hw_napt_table(void)
-{
-	#if defined(CONFIG_RTL_LAYERED_DRIVER_L4)
-	rtl865x_napt_entry *naptEntry;
-	rtl865x_priority rtl865xPrio;
-	uint16 in, out;
-	int i;
-	static rtl865x_napt_entry p[] =
-	{
-	{0, htonl(0xc0a8000a), htons(10000), htonl(0xc0a80109), htons(10000),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10001), htonl(0xc0a80109), htons(10001),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10002), htonl(0xc0a80109), htons(10002),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10003), htonl(0xc0a80109), htons(10003),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10004), htonl(0xc0a80109), htons(10004),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10005), htonl(0xc0a80109), htons(10005),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10006), htonl(0xc0a80109), htons(10006),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10007), htonl(0xc0a80109), htons(10007),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10008), htonl(0xc0a80109), htons(10008),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10009), htonl(0xc0a80109), htons(10009),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10010), htonl(0xc0a80109), htons(10010),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10011), htonl(0xc0a80109), htons(10011),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10012), htonl(0xc0a80109), htons(10012),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10013), htonl(0xc0a80109), htons(10013),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10014), htonl(0xc0a80109), htons(10014),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10015), htonl(0xc0a80109), htons(10015),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10024), htonl(0xc0a80109), htons(10024),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10025), htonl(0xc0a80109), htons(10025),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10026), htonl(0xc0a80109), htons(10026),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10027), htonl(0xc0a80109), htons(10027),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10028), htonl(0xc0a80109), htons(10028),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10029), htonl(0xc0a80109), htons(10029),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10030), htonl(0xc0a80109), htons(10030),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10031), htonl(0xc0a80109), htons(10031),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10032), htonl(0xc0a80109), htons(10032),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10033), htonl(0xc0a80109), htons(10033),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10034), htonl(0xc0a80109), htons(10034),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10035), htonl(0xc0a80109), htons(10035),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10038), htonl(0xc0a80109), htons(10038),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10044), htonl(0xc0a80109), htons(10044),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10046), htonl(0xc0a80109), htons(10046),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10048), htonl(0xc0a80109), htons(10048),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10049), htonl(0xc0a80109), htons(10049),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10050), htonl(0xc0a80109), htons(10050),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10051), htonl(0xc0a80109), htons(10051),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10052), htonl(0xc0a80109), htons(10052),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10053), htonl(0xc0a80109), htons(10053),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10054), htonl(0xc0a80109), htons(10054),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10055), htonl(0xc0a80109), htons(10055),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10056), htonl(0xc0a80109), htons(10056),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10057), htonl(0xc0a80109), htons(10057),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10058), htonl(0xc0a80109), htons(10058),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10059), htonl(0xc0a80109), htons(10059),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10060), htonl(0xc0a80109), htons(10060),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10061), htonl(0xc0a80109), htons(10061),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10062), htonl(0xc0a80109), htons(10062),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10063), htonl(0xc0a80109), htons(10063),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10064), htonl(0xc0a80109), htons(10064),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10065), htonl(0xc0a80109), htons(10065),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10066), htonl(0xc0a80109), htons(10066),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10067), htonl(0xc0a80109), htons(10067),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10068), htonl(0xc0a80109), htons(10068),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10069), htonl(0xc0a80109), htons(10069),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10070), htonl(0xc0a80109), htons(10070),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10071), htonl(0xc0a80109), htons(10071),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10072), htonl(0xc0a80109), htons(10072),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10073), htonl(0xc0a80109), htons(10073),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10074), htonl(0xc0a80109), htons(10074),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10075), htonl(0xc0a80109), htons(10075),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10076), htonl(0xc0a80109), htons(10076),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10077), htonl(0xc0a80109), htons(10077),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10078), htonl(0xc0a80109), htons(10078),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10079), htonl(0xc0a80109), htons(10079),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10080), htonl(0xc0a80109), htons(10080),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10082), htonl(0xc0a80109), htons(10082),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10084), htonl(0xc0a80109), htons(10084),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10086), htonl(0xc0a80109), htons(10086),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10088), htonl(0xc0a80109), htons(10088),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10090), htonl(0xc0a80109), htons(10090),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10092), htonl(0xc0a80109), htons(10092),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10094), htonl(0xc0a80109), htons(10094),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10096), htonl(0xc0a80109), htons(10096),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10098), htonl(0xc0a80109), htons(10098),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10100), htonl(0xc0a80109), htons(10100),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10102), htonl(0xc0a80109), htons(10102),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10104), htonl(0xc0a80109), htons(10104),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10106), htonl(0xc0a80109), htons(10106),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10108), htonl(0xc0a80109), htons(10108),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10110), htonl(0xc0a80109), htons(10110),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10112), htonl(0xc0a80109), htons(10112),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10113), htonl(0xc0a80109), htons(10113),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10114), htonl(0xc0a80109), htons(10114),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10116), htonl(0xc0a80109), htons(10116),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10117), htonl(0xc0a80109), htons(10117),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10118), htonl(0xc0a80109), htons(10118),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10120), htonl(0xc0a80109), htons(10120),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10121), htonl(0xc0a80109), htons(10121),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10122), htonl(0xc0a80109), htons(10122),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10124), htonl(0xc0a80109), htons(10124),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10125), htonl(0xc0a80109), htons(10125),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10126), htonl(0xc0a80109), htons(10126),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10128), htonl(0xc0a80109), htons(10128),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10129), htonl(0xc0a80109), htons(10129),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10130), htonl(0xc0a80109), htons(10130),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10132), htonl(0xc0a80109), htons(10132),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10133), htonl(0xc0a80109), htons(10133),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10134), htonl(0xc0a80109), htons(10134),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10136), htonl(0xc0a80109), htons(10136),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10137), htonl(0xc0a80109), htons(10137),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10138), htonl(0xc0a80109), htons(10138),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10140), htonl(0xc0a80109), htons(10140),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10141), htonl(0xc0a80109), htons(10141),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10142), htonl(0xc0a80109), htons(10142),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10144), htonl(0xc0a80109), htons(10144),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10145), htonl(0xc0a80109), htons(10145),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10146), htonl(0xc0a80109), htons(10146),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10148), htonl(0xc0a80109), htons(10148),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10149), htonl(0xc0a80109), htons(10149),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10150), htonl(0xc0a80109), htons(10150),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10152), htonl(0xc0a80109), htons(10152),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10153), htonl(0xc0a80109), htons(10153),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10154), htonl(0xc0a80109), htons(10154),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10156), htonl(0xc0a80109), htons(10156),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10157), htonl(0xc0a80109), htons(10157),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10158), htonl(0xc0a80109), htons(10158),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10160), htonl(0xc0a80109), htons(10160),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10161), htonl(0xc0a80109), htons(10161),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10162), htonl(0xc0a80109), htons(10162),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10164), htonl(0xc0a80109), htons(10164),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10165), htonl(0xc0a80109), htons(10165),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10166), htonl(0xc0a80109), htons(10166),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10168), htonl(0xc0a80109), htons(10168),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10169), htonl(0xc0a80109), htons(10169),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10170), htonl(0xc0a80109), htons(10170),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10172), htonl(0xc0a80109), htons(10172),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10173), htonl(0xc0a80109), htons(10173),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10174), htonl(0xc0a80109), htons(10174),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10176), htonl(0xc0a80109), htons(10176),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10178), htonl(0xc0a80109), htons(10178),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10180), htonl(0xc0a80109), htons(10180),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10182), htonl(0xc0a80109), htons(10182),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10184), htonl(0xc0a80109), htons(10184),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10186), htonl(0xc0a80109), htons(10186),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10188), htonl(0xc0a80109), htons(10188),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10190), htonl(0xc0a80109), htons(10190),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10192), htonl(0xc0a80109), htons(10192),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10194), htonl(0xc0a80109), htons(10194),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10196), htonl(0xc0a80109), htons(10196),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10198), htonl(0xc0a80109), htons(10198),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10200), htonl(0xc0a80109), htons(10200),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10202), htonl(0xc0a80109), htons(10202),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10204), htonl(0xc0a80109), htons(10204),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10206), htonl(0xc0a80109), htons(10206),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10208), htonl(0xc0a80109), htons(10208),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10210), htonl(0xc0a80109), htons(10210),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10212), htonl(0xc0a80109), htons(10212),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10214), htonl(0xc0a80109), htons(10214),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10216), htonl(0xc0a80109), htons(10216),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10218), htonl(0xc0a80109), htons(10218),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10220), htonl(0xc0a80109), htons(10220),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10222), htonl(0xc0a80109), htons(10222),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10224), htonl(0xc0a80109), htons(10224),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10226), htonl(0xc0a80109), htons(10226),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10228), htonl(0xc0a80109), htons(10228),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10230), htonl(0xc0a80109), htons(10230),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10232), htonl(0xc0a80109), htons(10232),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10234), htonl(0xc0a80109), htons(10234),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10236), htonl(0xc0a80109), htons(10236),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10238), htonl(0xc0a80109), htons(10238),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10240), htonl(0xc0a80109), htons(10240),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10241), htonl(0xc0a80109), htons(10241),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10242), htonl(0xc0a80109), htons(10242),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10243), htonl(0xc0a80109), htons(10243),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10244), htonl(0xc0a80109), htons(10244),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10245), htonl(0xc0a80109), htons(10245),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10246), htonl(0xc0a80109), htons(10246),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10247), htonl(0xc0a80109), htons(10247),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10248), htonl(0xc0a80109), htons(10248),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10249), htonl(0xc0a80109), htons(10249),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10250), htonl(0xc0a80109), htons(10250),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10251), htonl(0xc0a80109), htons(10251),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10252), htonl(0xc0a80109), htons(10252),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10253), htonl(0xc0a80109), htons(10253),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10254), htonl(0xc0a80109), htons(10254),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10255), htonl(0xc0a80109), htons(10255),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10256), htonl(0xc0a80109), htons(10256),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10257), htonl(0xc0a80109), htons(10257),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10258), htonl(0xc0a80109), htons(10258),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10259), htonl(0xc0a80109), htons(10259),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10260), htonl(0xc0a80109), htons(10260),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10261), htonl(0xc0a80109), htons(10261),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10262), htonl(0xc0a80109), htons(10262),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10263), htonl(0xc0a80109), htons(10263),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10264), htonl(0xc0a80109), htons(10264),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10265), htonl(0xc0a80109), htons(10265),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10266), htonl(0xc0a80109), htons(10266),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10267), htonl(0xc0a80109), htons(10267),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10268), htonl(0xc0a80109), htons(10268),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10269), htonl(0xc0a80109), htons(10269),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10270), htonl(0xc0a80109), htons(10270),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10271), htonl(0xc0a80109), htons(10271),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10272), htonl(0xc0a80109), htons(10272),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10273), htonl(0xc0a80109), htons(10273),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10274), htonl(0xc0a80109), htons(10274),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10275), htonl(0xc0a80109), htons(10275),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10276), htonl(0xc0a80109), htons(10276),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10277), htonl(0xc0a80109), htons(10277),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10278), htonl(0xc0a80109), htons(10278),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10279), htonl(0xc0a80109), htons(10279),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10280), htonl(0xc0a80109), htons(10280),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10281), htonl(0xc0a80109), htons(10281),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10282), htonl(0xc0a80109), htons(10282),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10283), htonl(0xc0a80109), htons(10283),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10284), htonl(0xc0a80109), htons(10284),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10285), htonl(0xc0a80109), htons(10285),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10286), htonl(0xc0a80109), htons(10286),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10287), htonl(0xc0a80109), htons(10287),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10288), htonl(0xc0a80109), htons(10288),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10289), htonl(0xc0a80109), htons(10289),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10290), htonl(0xc0a80109), htons(10290),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10291), htonl(0xc0a80109), htons(10291),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10292), htonl(0xc0a80109), htons(10292),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10293), htonl(0xc0a80109), htons(10293),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10294), htonl(0xc0a80109), htons(10294),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10295), htonl(0xc0a80109), htons(10295),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10296), htonl(0xc0a80109), htons(10296),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10297), htonl(0xc0a80109), htons(10297),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10298), htonl(0xc0a80109), htons(10298),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10299), htonl(0xc0a80109), htons(10299),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10300), htonl(0xc0a80109), htons(10300),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10301), htonl(0xc0a80109), htons(10301),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10302), htonl(0xc0a80109), htons(10302),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10303), htonl(0xc0a80109), htons(10303),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10304), htonl(0xc0a80109), htons(10304),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10305), htonl(0xc0a80109), htons(10305),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10306), htonl(0xc0a80109), htons(10306),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10307), htonl(0xc0a80109), htons(10307),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10308), htonl(0xc0a80109), htons(10308),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10309), htonl(0xc0a80109), htons(10309),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10310), htonl(0xc0a80109), htons(10310),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10311), htonl(0xc0a80109), htons(10311),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10312), htonl(0xc0a80109), htons(10312),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10313), htonl(0xc0a80109), htons(10313),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10314), htonl(0xc0a80109), htons(10314),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10315), htonl(0xc0a80109), htons(10315),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10316), htonl(0xc0a80109), htons(10316),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10317), htonl(0xc0a80109), htons(10317),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10318), htonl(0xc0a80109), htons(10318),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10319), htonl(0xc0a80109), htons(10319),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10320), htonl(0xc0a80109), htons(10320),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10321), htonl(0xc0a80109), htons(10321),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10322), htonl(0xc0a80109), htons(10322),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10323), htonl(0xc0a80109), htons(10323),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10324), htonl(0xc0a80109), htons(10324),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10325), htonl(0xc0a80109), htons(10325),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10326), htonl(0xc0a80109), htons(10326),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10327), htonl(0xc0a80109), htons(10327),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10328), htonl(0xc0a80109), htons(10328),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10329), htonl(0xc0a80109), htons(10329),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10330), htonl(0xc0a80109), htons(10330),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10331), htonl(0xc0a80109), htons(10331),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10332), htonl(0xc0a80109), htons(10332),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10333), htonl(0xc0a80109), htons(10333),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10334), htonl(0xc0a80109), htons(10334),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10335), htonl(0xc0a80109), htons(10335),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10336), htonl(0xc0a80109), htons(10336),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10337), htonl(0xc0a80109), htons(10337),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10338), htonl(0xc0a80109), htons(10338),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10339), htonl(0xc0a80109), htons(10339),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10340), htonl(0xc0a80109), htons(10340),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10341), htonl(0xc0a80109), htons(10341),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10342), htonl(0xc0a80109), htons(10342),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10343), htonl(0xc0a80109), htons(10343),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10344), htonl(0xc0a80109), htons(10344),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10345), htonl(0xc0a80109), htons(10345),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10346), htonl(0xc0a80109), htons(10346),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10347), htonl(0xc0a80109), htons(10347),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10348), htonl(0xc0a80109), htons(10348),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10349), htonl(0xc0a80109), htons(10349),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10350), htonl(0xc0a80109), htons(10350),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10351), htonl(0xc0a80109), htons(10351),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10352), htonl(0xc0a80109), htons(10352),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10353), htonl(0xc0a80109), htons(10353),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10354), htonl(0xc0a80109), htons(10354),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10355), htonl(0xc0a80109), htons(10355),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10356), htonl(0xc0a80109), htons(10356),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10357), htonl(0xc0a80109), htons(10357),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10358), htonl(0xc0a80109), htons(10358),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10359), htonl(0xc0a80109), htons(10359),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10360), htonl(0xc0a80109), htons(10360),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10361), htonl(0xc0a80109), htons(10361),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10362), htonl(0xc0a80109), htons(10362),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10363), htonl(0xc0a80109), htons(10363),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10364), htonl(0xc0a80109), htons(10364),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10365), htonl(0xc0a80109), htons(10365),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10366), htonl(0xc0a80109), htons(10366),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10367), htonl(0xc0a80109), htons(10367),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10432), htonl(0xc0a80109), htons(10432),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10433), htonl(0xc0a80109), htons(10433),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10434), htonl(0xc0a80109), htons(10434),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10435), htonl(0xc0a80109), htons(10435),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10436), htonl(0xc0a80109), htons(10436),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10437), htonl(0xc0a80109), htons(10437),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10438), htonl(0xc0a80109), htons(10438),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10439), htonl(0xc0a80109), htons(10439),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10440), htonl(0xc0a80109), htons(10440),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10441), htonl(0xc0a80109), htons(10441),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10442), htonl(0xc0a80109), htons(10442),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10448), htonl(0xc0a80109), htons(10448),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10450), htonl(0xc0a80109), htons(10450),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10452), htonl(0xc0a80109), htons(10452),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10454), htonl(0xc0a80109), htons(10454),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10456), htonl(0xc0a80109), htons(10456),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10458), htonl(0xc0a80109), htons(10458),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10460), htonl(0xc0a80109), htons(10460),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10462), htonl(0xc0a80109), htons(10462),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10464), htonl(0xc0a80109), htons(10464),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10465), htonl(0xc0a80109), htons(10465),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10466), htonl(0xc0a80109), htons(10466),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10468), htonl(0xc0a80109), htons(10468),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10469), htonl(0xc0a80109), htons(10469),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10470), htonl(0xc0a80109), htons(10470),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10472), htonl(0xc0a80109), htons(10472),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10473), htonl(0xc0a80109), htons(10473),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10474), htonl(0xc0a80109), htons(10474),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10476), htonl(0xc0a80109), htons(10476),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10477), htonl(0xc0a80109), htons(10477),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10478), htonl(0xc0a80109), htons(10478),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10480), htonl(0xc0a80109), htons(10480),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10481), htonl(0xc0a80109), htons(10481),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10482), htonl(0xc0a80109), htons(10482),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10484), htonl(0xc0a80109), htons(10484),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10485), htonl(0xc0a80109), htons(10485),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10486), htonl(0xc0a80109), htons(10486),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10488), htonl(0xc0a80109), htons(10488),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10489), htonl(0xc0a80109), htons(10489),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10490), htonl(0xc0a80109), htons(10490),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10492), htonl(0xc0a80109), htons(10492),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10493), htonl(0xc0a80109), htons(10493),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10494), htonl(0xc0a80109), htons(10494),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10536), htonl(0xc0a80109), htons(10536),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10538), htonl(0xc0a80109), htons(10538),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10540), htonl(0xc0a80109), htons(10540),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10542), htonl(0xc0a80109), htons(10542),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10546), htonl(0xc0a80109), htons(10546),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10548), htonl(0xc0a80109), htons(10548),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10556), htonl(0xc0a80109), htons(10556),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10558), htonl(0xc0a80109), htons(10558),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10624), htonl(0xc0a80109), htons(10624),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10626), htonl(0xc0a80109), htons(10626),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10628), htonl(0xc0a80109), htons(10628),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10630), htonl(0xc0a80109), htons(10630),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10632), htonl(0xc0a80109), htons(10632),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10634), htonl(0xc0a80109), htons(10634),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10636), htonl(0xc0a80109), htons(10636),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10638), htonl(0xc0a80109), htons(10638),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10640), htonl(0xc0a80109), htons(10640),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10642), htonl(0xc0a80109), htons(10642),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10644), htonl(0xc0a80109), htons(10644),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10646), htonl(0xc0a80109), htons(10646),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10648), htonl(0xc0a80109), htons(10648),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10650), htonl(0xc0a80109), htons(10650),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10652), htonl(0xc0a80109), htons(10652),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10654), htonl(0xc0a80109), htons(10654),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10656), htonl(0xc0a80109), htons(10656),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10658), htonl(0xc0a80109), htons(10658),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10660), htonl(0xc0a80109), htons(10660),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10662), htonl(0xc0a80109), htons(10662),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10664), htonl(0xc0a80109), htons(10664),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10666), htonl(0xc0a80109), htons(10666),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10668), htonl(0xc0a80109), htons(10668),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10670), htonl(0xc0a80109), htons(10670),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10672), htonl(0xc0a80109), htons(10672),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10674), htonl(0xc0a80109), htons(10674),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10676), htonl(0xc0a80109), htons(10676),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10678), htonl(0xc0a80109), htons(10678),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10680), htonl(0xc0a80109), htons(10680),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10682), htonl(0xc0a80109), htons(10682),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10684), htonl(0xc0a80109), htons(10684),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10686), htonl(0xc0a80109), htons(10686),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10688), htonl(0xc0a80109), htons(10688),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10690), htonl(0xc0a80109), htons(10690),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10692), htonl(0xc0a80109), htons(10692),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10694), htonl(0xc0a80109), htons(10694),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10696), htonl(0xc0a80109), htons(10696),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10698), htonl(0xc0a80109), htons(10698),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10700), htonl(0xc0a80109), htons(10700),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10702), htonl(0xc0a80109), htons(10702),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10704), htonl(0xc0a80109), htons(10704),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10706), htonl(0xc0a80109), htons(10706),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10708), htonl(0xc0a80109), htons(10708),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10710), htonl(0xc0a80109), htons(10710),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10712), htonl(0xc0a80109), htons(10712),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10714), htonl(0xc0a80109), htons(10714),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10716), htonl(0xc0a80109), htons(10716),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10718), htonl(0xc0a80109), htons(10718),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10720), htonl(0xc0a80109), htons(10720),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10722), htonl(0xc0a80109), htons(10722),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10724), htonl(0xc0a80109), htons(10724),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10726), htonl(0xc0a80109), htons(10726),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10728), htonl(0xc0a80109), htons(10728),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10730), htonl(0xc0a80109), htons(10730),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10732), htonl(0xc0a80109), htons(10732),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10734), htonl(0xc0a80109), htons(10734),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10736), htonl(0xc0a80109), htons(10736),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10738), htonl(0xc0a80109), htons(10738),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10740), htonl(0xc0a80109), htons(10740),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10742), htonl(0xc0a80109), htons(10742),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10744), htonl(0xc0a80109), htons(10744),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10746), htonl(0xc0a80109), htons(10746),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10748), htonl(0xc0a80109), htons(10748),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10750), htonl(0xc0a80109), htons(10750),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10753), htonl(0xc0a80109), htons(10753),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10757), htonl(0xc0a80109), htons(10757),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10758), htonl(0xc0a80109), htons(10758),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10761), htonl(0xc0a80109), htons(10761),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10765), htonl(0xc0a80109), htons(10765),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10766), htonl(0xc0a80109), htons(10766),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10769), htonl(0xc0a80109), htons(10769),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10773), htonl(0xc0a80109), htons(10773),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10774), htonl(0xc0a80109), htons(10774),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10777), htonl(0xc0a80109), htons(10777),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10781), htonl(0xc0a80109), htons(10781),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10782), htonl(0xc0a80109), htons(10782),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10785), htonl(0xc0a80109), htons(10785),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10789), htonl(0xc0a80109), htons(10789),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10790), htonl(0xc0a80109), htons(10790),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10793), htonl(0xc0a80109), htons(10793),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10797), htonl(0xc0a80109), htons(10797),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10798), htonl(0xc0a80109), htons(10798),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10813), htonl(0xc0a80109), htons(10813),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10814), htonl(0xc0a80109), htons(10814),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10953), htonl(0xc0a80109), htons(10953),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10977), htonl(0xc0a80109), htons(10977),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10978), htonl(0xc0a80109), htons(10978),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10981), htonl(0xc0a80109), htons(10981),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10982), htonl(0xc0a80109), htons(10982),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10985), htonl(0xc0a80109), htons(10985),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10986), htonl(0xc0a80109), htons(10986),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10989), htonl(0xc0a80109), htons(10989),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10990), htonl(0xc0a80109), htons(10990),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10993), htonl(0xc0a80109), htons(10993),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10994), htonl(0xc0a80109), htons(10994),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10997), htonl(0xc0a80109), htons(10997),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10998), htonl(0xc0a80109), htons(10998),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(11001), htonl(0xc0a80109), htons(11001),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(11002), htonl(0xc0a80109), htons(11002),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(11005), htonl(0xc0a80109), htons(11005),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(11006), htonl(0xc0a80109), htons(11006),  htonl(0xc0a8010a), htons(50000)},
-	{0, htonl(0xc0a8000a), htons(10548), htonl(0xc0a80109), htons(10548),  htonl(0xc0a8010a), htons(50001)},
-	{0, htonl(0xc0a8000a), htons(10046), htonl(0xc0a80109), htons(10046),  htonl(0xc0a8010a), htons(50002)},
-	{0, htonl(0xc0a8000a), htons(10556), htonl(0xc0a80109), htons(10556),  htonl(0xc0a8010a), htons(50002)},
-	{0, htonl(0xc0a8000a), htons(10558), htonl(0xc0a80109), htons(10558),  htonl(0xc0a8010a), htons(50002)},
-	{0, htonl(0xc0a8000a), htons(10813), htonl(0xc0a80109), htons(10813),  htonl(0xc0a8010a), htons(50002)},
-	{0, htonl(0xc0a8000a), htons(10953), htonl(0xc0a80109), htons(10953),  htonl(0xc0a8010a), htons(50002)},
-	{0, htonl(0xc0a8000a), htons(10813), htonl(0xc0a80109), htons(10813),  htonl(0xc0a8010a), htons(50004)},
-	{0, htonl(0xc0a8000a), htons(10031), htonl(0xc0a80109), htons(10031),  htonl(0xc0a8010a), htons(50007)},
-	{0, htonl(0xc0a8000a), htons(10790), htonl(0xc0a80109), htons(10790),  htonl(0xc0a8010a), htons(50008)},
-	{0, htonl(0xc0a8000a), htons(10789), htonl(0xc0a80109), htons(10789),  htonl(0xc0a8010a), htons(50010)},
-	{0, htonl(0xc0a8000a), htons(10540), htonl(0xc0a80109), htons(10540),  htonl(0xc0a8010a), htons(50014)},
-	{0, htonl(0xc0a8000a), htons(10467), htonl(0xc0a80109), htons(10467),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10468), htonl(0xc0a80109), htons(10468),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10475), htonl(0xc0a80109), htons(10475),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10476), htonl(0xc0a80109), htons(10476),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10483), htonl(0xc0a80109), htons(10483),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10491), htonl(0xc0a80109), htons(10491),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10492), htonl(0xc0a80109), htons(10492),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10979), htonl(0xc0a80109), htons(10979),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10983), htonl(0xc0a80109), htons(10983),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10987), htonl(0xc0a80109), htons(10987),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10991), htonl(0xc0a80109), htons(10991),  htonl(0xc0a8010a), htons(50017)},
-	{0, htonl(0xc0a8000a), htons(10548), htonl(0xc0a80109), htons(10548),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10753), htonl(0xc0a80109), htons(10753),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10754), htonl(0xc0a80109), htons(10754),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10757), htonl(0xc0a80109), htons(10757),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10761), htonl(0xc0a80109), htons(10761),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10762), htonl(0xc0a80109), htons(10762),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10765), htonl(0xc0a80109), htons(10765),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10769), htonl(0xc0a80109), htons(10769),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10770), htonl(0xc0a80109), htons(10770),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10773), htonl(0xc0a80109), htons(10773),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10777), htonl(0xc0a80109), htons(10777),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10778), htonl(0xc0a80109), htons(10778),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10781), htonl(0xc0a80109), htons(10781),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10801), htonl(0xc0a80109), htons(10801),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10802), htonl(0xc0a80109), htons(10802),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10805), htonl(0xc0a80109), htons(10805),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10810), htonl(0xc0a80109), htons(10810),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10813), htonl(0xc0a80109), htons(10813),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10982), htonl(0xc0a80109), htons(10982),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10990), htonl(0xc0a80109), htons(10990),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10998), htonl(0xc0a80109), htons(10998),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(11006), htonl(0xc0a80109), htons(11006),  htonl(0xc0a8010a), htons(50018)},
-	{0, htonl(0xc0a8000a), htons(10805), htonl(0xc0a80109), htons(10805),  htonl(0xc0a8010a), htons(50020)},
-	{0, htonl(0xc0a8000a), htons(10806), htonl(0xc0a80109), htons(10806),  htonl(0xc0a8010a), htons(50024)},
-	{0, htonl(0xc0a8000a), htons(10548), htonl(0xc0a80109), htons(10548),  htonl(0xc0a8010a), htons(50026)},
-	{0, htonl(0xc0a8000a), htons(10810), htonl(0xc0a80109), htons(10810),  htonl(0xc0a8010a), htons(50026)},
-	{0, htonl(0xc0a8000a), htons(10981), htonl(0xc0a80109), htons(10981),  htonl(0xc0a8010a), htons(50026)},
-	{0, htonl(0xc0a8000a), htons(10989), htonl(0xc0a80109), htons(10989),  htonl(0xc0a8010a), htons(50026)},
-	{0, htonl(0xc0a8000a), htons(10757), htonl(0xc0a80109), htons(10757),  htonl(0xc0a8010a), htons(50036)},
-	{0, htonl(0xc0a8000a), htons(10765), htonl(0xc0a80109), htons(10765),  htonl(0xc0a8010a), htons(50036)},
-	{0, htonl(0xc0a8000a), htons(10773), htonl(0xc0a80109), htons(10773),  htonl(0xc0a8010a), htons(50046)},
-	{0, htonl(0xc0a8000a), htons(10781), htonl(0xc0a80109), htons(10781),  htonl(0xc0a8010a), htons(50046)},
-	{0, htonl(0xc0a8000a), htons(10113), htonl(0xc0a80109), htons(10113),  htonl(0xc0a8010a), htons(50112)},
-	{0, htonl(0xc0a8000a), htons(10117), htonl(0xc0a80109), htons(10117),  htonl(0xc0a8010a), htons(50112)},
-	{0, htonl(0xc0a8000a), htons(10121), htonl(0xc0a80109), htons(10121),  htonl(0xc0a8010a), htons(50112)},
-	{0, htonl(0xc0a8000a), htons(10125), htonl(0xc0a80109), htons(10125),  htonl(0xc0a8010a), htons(50112)},
-	{0, htonl(0xc0a8000a), htons(10173), htonl(0xc0a80109), htons(10173),  htonl(0xc0a8010a), htons(50112)},
-	{0, htonl(0xc0a8000a), htons(10116), htonl(0xc0a80109), htons(10116),  htonl(0xc0a8010a), htons(50113)},
-	{0, htonl(0xc0a8000a), htons(10120), htonl(0xc0a80109), htons(10120),  htonl(0xc0a8010a), htons(50113)},
-	{0, htonl(0xc0a8000a), htons(10124), htonl(0xc0a80109), htons(10124),  htonl(0xc0a8010a), htons(50113)},
-	{0, htonl(0xc0a8000a), htons(10164), htonl(0xc0a80109), htons(10164),  htonl(0xc0a8010a), htons(50113)},
-	{0, htonl(0xc0a8000a), htons(10172), htonl(0xc0a80109), htons(10172),  htonl(0xc0a8010a), htons(50113)},
-	{0, htonl(0xc0a8000a), htons(10149), htonl(0xc0a80109), htons(10149),  htonl(0xc0a8010a), htons(50116)},
-	{0, htonl(0xc0a8000a), htons(10173), htonl(0xc0a80109), htons(10173),  htonl(0xc0a8010a), htons(50116)},
-	{0, htonl(0xc0a8000a), htons(10320), htonl(0xc0a80109), htons(10320),  htonl(0xc0a8010a), htons(50117)},
-	{0, htonl(0xc0a8000a), htons(10114), htonl(0xc0a80109), htons(10114),  htonl(0xc0a8010a), htons(50122)},
-	{0, htonl(0xc0a8000a), htons(10122), htonl(0xc0a80109), htons(10122),  htonl(0xc0a8010a), htons(50122)},
-	{0, htonl(0xc0a8000a), htons(10126), htonl(0xc0a80109), htons(10126),  htonl(0xc0a8010a), htons(50122)},
-	{0, htonl(0xc0a8000a), htons(10123), htonl(0xc0a80109), htons(10123),  htonl(0xc0a8010a), htons(50123)},
-	{0, htonl(0xc0a8000a), htons(10127), htonl(0xc0a80109), htons(10127),  htonl(0xc0a8010a), htons(50123)},
-	{0, htonl(0xc0a8000a), htons(10139), htonl(0xc0a80109), htons(10139),  htonl(0xc0a8010a), htons(50171)}
-	};
-
-	memset(&rtl865xPrio, 0, sizeof(rtl865x_priority));
-
-	for (i = 0; i < 512; i++)
-	{
-
-		naptEntry = &p[i];
-
-		rtl865x_addNaptConnection(naptEntry, &rtl865xPrio);
-
-		in = rtl8651_naptTcpUdpTableIndex((uint8)naptEntry->protocol,
-			htonl(naptEntry->remIp), htons((uint16)(naptEntry->remPort)),
-			htonl(naptEntry->extIp), htons((uint16)(naptEntry->extPort)));
-		out = rtl8651_naptTcpUdpTableIndex((uint8)naptEntry->protocol,
-			htonl(naptEntry->intIp), htons((uint16)(naptEntry->intPort)),
-			htonl(naptEntry->remIp), htons((uint16)(naptEntry->remPort)));
-
-		pr_err("UDP %u.%u.%u.%u:%u <--> %u.%u.%u.%u:%u <--> %u.%u.%u.%u:%u up %3d down %3d\n",
-			NIPQUAD(naptEntry->intIp), htons((uint16)(naptEntry->intPort)),
-			NIPQUAD(naptEntry->extIp), htons((uint16)(naptEntry->extPort)),
-			NIPQUAD(naptEntry->remIp), htons((uint16)(naptEntry->remPort)),
-			out, in);
-	}
-	#endif /* CONFIG_RTL_LAYERED_DRIVER_L4 */
-}
-
-static int32 proc_test_napt_read(struct seq_file *s, void *v)
-{
-
-	seq_printf(s, "NAPT test mode is %d\n", rtl_test_napt_mode);
-
-	return 0;
-}
-
-
-static int32 proc_test_napt_write(struct file *filp, const char *buff,
-	unsigned long len, void *data)
-{
-	char tmpbuf[80];
-	int32 mode;
-
-	if (len > 80) {
-		goto errout;
-	}
-	if (buff && !copy_from_user(tmpbuf, buff, len)) {
-		tmpbuf[len] = '\0';
-
-		mode = simple_strtol(tmpbuf, NULL, 0);
-
-		if (mode > 0 && mode != rtl_test_napt_mode) {
-			rtl_test_napt_mode = mode;
-			pr_err("Enable HW NAPT test mode\n");
-			rtl_fill_hw_napt_table();
-
-		} else if (mode == 0 && mode != rtl_test_napt_mode) {
-			rtl_test_napt_mode = mode;
-			pr_err("Disable HW NAPT test mode\n");
-			#if defined(CONFIG_RTL_LAYERED_DRIVER_L4)
-			rtl865x_nat_reinit();
-			#endif /* CONFIG_RTL_LAYERED_DRIVER_L4 */
-		}
-	} else {
-errout:
-		rtlglue_printf("error input\n");
-	}
-
-	return len;
-}
-
-int test_napt_single_open(struct inode *inode, struct file *file)
-{
-	return (single_open(file, proc_test_napt_read, NULL));
-}
-
-static ssize_t test_napt_single_write(struct file *file,
-	const char __user *userbuf, size_t count, loff_t *off)
-{
-	return proc_test_napt_write(file, userbuf, count, off);
-}
-
-struct file_operations test_napt_proc_fops = {
-	.open = test_napt_single_open,
-	.write = test_napt_single_write,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-/* end of debug NAPT hash entries */
-
 static int32 proc_rgmii_read(struct seq_file *s, void *v)
 {
 	uint32_t regData;
@@ -10412,10 +9783,9 @@ static int32 rtl865x_proc_mibCounter_read(char *page, char **start, off_t off,
 }
 #endif
 
-#if defined(CONFIG_RTL_8367R_SUPPORT) || defined(CONFIG_RTL_8198C_8367RB) || defined(CONFIG_RTL_836X_SUPPORT)
+#if defined(CONFIG_RTL_8367R_SUPPORT) || defined(CONFIG_RTL_8198C_8367RB)
 extern uint32 r8367_cpu_port;
 extern rtk_stat_port_cntr_t port_cntrs;
-extern spinlock_t rtl836x_ext_lock;
 
 void display_8367r_port_stat(uint32 port, rtk_stat_port_cntr_t *pPort_cntrs)
 {
@@ -10430,10 +9800,10 @@ void display_8367r_port_stat(uint32 port, rtk_stat_port_cntr_t *pPort_cntrs)
 	rtlglue_printf("   etherStatsOctets  %llu\n",
 		pPort_cntrs->etherStatsOctets);
 	rtlglue_printf("   ifInUcastPkts  %u\n", pPort_cntrs->ifInUcastPkts);
-	rtlglue_printf("   ifInMulticastPkts %u\n",
-		pPort_cntrs->ifInMulticastPkts);
-	rtlglue_printf("   ifInBroadcastPkts %u\n",
-		pPort_cntrs->ifInBroadcastPkts);
+	rtlglue_printf("   etherStatsMcastPkts  %u\n",
+		pPort_cntrs->etherStatsMcastPkts);
+	rtlglue_printf("   etherStatsBcastPkts  %u\n",
+		pPort_cntrs->etherStatsBcastPkts);
 
 	rtlglue_printf("   StatsFCSErrors  %u\n",
 		pPort_cntrs->dot3StatsFCSErrors);
@@ -10578,10 +9948,8 @@ static int32 rtl865x_proc_mibCounter_write(struct file *filp, const char *buff,
 		if (strncmp(cmdptr, "clear", 5) == 0) {
 			rtl8651_clearAsicCounter();
 
-#if defined(CONFIG_RTL_8367R_SUPPORT) || defined(CONFIG_RTL_8370_SUPPORT) || defined(CONFIG_RTL_8325D_SUPPORT) || defined(CONFIG_RTL_8198C_8367RB) || defined(CONFIG_RTL_836X_SUPPORT)
-			spin_lock(&rtl836x_ext_lock);
+#if defined(CONFIG_RTL_8367R_SUPPORT) || defined(CONFIG_RTL_8370_SUPPORT) || defined(CONFIG_RTL_8325D_SUPPORT) || defined(CONFIG_RTL_8198C_8367RB)
 			rtk_stat_global_reset();
-			spin_unlock(&rtl836x_ext_lock);
 #endif
 		} else if (strncmp(cmdptr, "dump", 4) == 0) {
 			cmdptr = strsep(&strptr, " ");
@@ -10654,23 +10022,6 @@ static int32 rtl865x_proc_mibCounter_write(struct file *filp, const char *buff,
 				return len;
 			}
 #endif
-#if defined(CONFIG_RTL_836X_SUPPORT)
-			if (strncmp(cmdptr, "836x", 4) == 0) {
-
-				cmdptr = strsep(&strptr, " ");
-				if (cmdptr == NULL) {
-					goto errout;
-				}
-				portNum = simple_strtol(cmdptr, NULL, 0);
-
-				memset(&port_cntrs, 0, sizeof(rtk_stat_port_cntr_t));
-				spin_lock(&rtl836x_ext_lock);
-				rtk_stat_port_getAll(portNum, &port_cntrs);
-				spin_unlock(&rtl836x_ext_lock);
-				display_8367r_port_stat(portNum, &port_cntrs);
-				return len;
-			}
-#endif /* CONFIG_RTL_836X_SUPPORT */
 			if (strncmp(cmdptr, "port", 4) != 0) {
 				goto errout;
 			}
@@ -11543,108 +10894,6 @@ static int32 proc_phyReg_write(struct file *filp, const char *buff,
 			}
 		}
 #endif
-#if defined(CONFIG_RTL_836X_SUPPORT)
-		else if (!memcmp(cmd_addr, "836xread", 8)) {
-			extern int rtl8367c_getAsicReg(unsigned int reg,
-				unsigned int *pValue);
-			tokptr = strsep(&strptr, " ");
-			if (tokptr == NULL) {
-				goto errout;
-			}
-			regId = simple_strtol(tokptr, NULL, 16);
-			spin_lock(&rtl836x_ext_lock);
-			ret = rtl8367c_getAsicReg(regId, &regData);
-			spin_unlock(&rtl836x_ext_lock);
-
-			if (ret == 0) {
-				rtlglue_printf("rtl8367c_getAsicReg: reg= %x, data= %x\n",
-					regId, regData);
-			} else {
-				rtlglue_printf("get fail %d\n", ret);
-			}
-		} else if (!memcmp(cmd_addr, "836xwrite", 9)) {
-			extern int rtl8367c_setAsicReg(unsigned int reg,
-				unsigned int pValue);
-			tokptr = strsep(&strptr, " ");
-			if (tokptr == NULL) {
-				goto errout;
-			}
-			regId = simple_strtol(tokptr, NULL, 16);
-
-			tokptr = strsep(&strptr, " ");
-			if (tokptr == NULL) {
-				goto errout;
-			}
-			regData = simple_strtol(tokptr, NULL, 16);
-
-			spin_lock(&rtl836x_ext_lock);
-			ret = rtl8367c_setAsicReg(regId, regData);
-			spin_unlock(&rtl836x_ext_lock);
-
-			if (ret == 0) {
-				rtlglue_printf("rtl8367c_setAsicReg: reg= %x, data= %x\n",
-					regId, regData);
-			} else {
-				rtlglue_printf("set fail %d\n", ret);
-			}
-		} else if (!memcmp(cmd_addr, "836xphyr", 8)) {
-			extern int rtl8367c_getAsicPHYReg(uint32 phyNo,
-				uint32 phyAddr, uint32 *pRegData);
-
-			tokptr = strsep(&strptr, " ");
-			if (tokptr == NULL) {
-				goto errout;
-			}
-			phyId = simple_strtol(tokptr, NULL, 0);
-
-			tokptr = strsep(&strptr, " ");
-			if (tokptr == NULL) {
-				goto errout;
-			}
-			regId = simple_strtol(tokptr, NULL, 0);
-
-			spin_lock(&rtl836x_ext_lock);
-			ret = rtl8367c_getAsicPHYReg(phyId, regId, &regData);
-			spin_unlock(&rtl836x_ext_lock);
-			if (ret == SUCCESS) {
-				rtlglue_printf("read 8367R/RB phyId(%d), regId(%d), regData:0x%x\n",
-					phyId, regId, regData);
-			} else {
-				rtlglue_printf("error input!\n");
-			}
-		} else if (!memcmp(cmd_addr, "836xphyw", 8)) {
-			extern int rtl8367c_setAsicPHYReg(uint32 phyNo,
-				uint32 phyAddr, uint32 phyData);
-
-			tokptr = strsep(&strptr, " ");
-			if (tokptr == NULL) {
-				goto errout;
-			}
-			phyId = simple_strtol(tokptr, NULL, 0);
-
-			tokptr = strsep(&strptr, " ");
-			if (tokptr == NULL) {
-				goto errout;
-			}
-			regId = simple_strtol(tokptr, NULL, 0);
-
-			tokptr = strsep(&strptr, " ");
-			if (tokptr == NULL) {
-				goto errout;
-			}
-			regData = simple_strtol(tokptr, NULL, 16);
-
-			spin_lock(&rtl836x_ext_lock);
-			ret = rtl8367c_setAsicPHYReg(phyId, regId, regData);
-			spin_unlock(&rtl836x_ext_lock);
-			if (ret == SUCCESS) {
-				rtlglue_printf("Write 8367R/RB phyId(%d), regId(%d), regData:0x%x\n",
-					phyId, regId, regData);
-			} else {
-				rtlglue_printf("error input!\n");
-			}
-		}
-#endif /* CONFIG_RTL_836X_SUPPORT */
 		else if (!memcmp(cmd_addr, "extRead", 7)) {
 			tokptr = strsep(&strptr, " ");
 			if (tokptr == NULL) {
@@ -15120,12 +14369,6 @@ int32 rtl865x_proc_debug_init(void)
 		{
 			proc_create_data("rgmii", 0, rtl865x_proc_dir,
 				&rgmii_proc_fops, NULL);
-		}
-
-		/* test_napt */
-		{
-			proc_create_data("test_napt", 0, rtl865x_proc_dir,
-				&test_napt_proc_fops, NULL);
 		}
 
 		/*asicCnt */

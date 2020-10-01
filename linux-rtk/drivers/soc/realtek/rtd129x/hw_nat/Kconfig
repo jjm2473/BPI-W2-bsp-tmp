@@ -102,7 +102,7 @@ config NEW_PCI
 
 config RTL_IGMP_PROXY
 	bool
-	default n
+	default y
 
 config RTL_IGMP_SNOOPING
 	bool
@@ -112,7 +112,7 @@ config RTL_IGMP_SNOOPING
 
 config RTL_MLD_SNOOPING
 	bool
-	default n
+	default y
 	depends on RTL_IGMP_SNOOPING
 
 config RTL_QUERIER_SELECTION
@@ -122,7 +122,7 @@ config RTL_QUERIER_SELECTION
 
 config RTL_MLD_PROXY
 	bool
-	default n
+	default y
 
 config RTL_LINKCHG_PROCESS
 	bool
@@ -198,7 +198,7 @@ menu "Config for Layered Driver Features"
 
 	choice
 		prompt "Hardware Features Selection"
-		default RTL_HW_L2_ONLY
+		default RTL_HW_NAPT
 		depends on RTL_LAYERED_DRIVER
 
 	config RTL_HW_NAPT
@@ -234,47 +234,22 @@ menu "Config for Layered Driver Features"
 	endchoice
 
 	comment 'Choose advance features.'
-#	config RTL_L2_HW_MULTICAST_SUPPORT
-#		bool "RTL l2 hw multicast support"
-#		default n
-#		depends on RTL_HARDWARE_MULTICAST
 
-	config RTL_HW_MCAST_PATCH_FOR_MAC
-		#bool "RTL Hardware Multicast patch for Mac address"
-		default y
-		depends on RTL_HARDWARE_MULTICAST && !OPENWRT_SDK
-		depends on RTL_8196E || RTL_8881A || RTL_8198C || RTL_8197F
+#	config RTL_HW_MCAST_PATCH_FOR_MAC
+#		 #bool "RTL Hardware Multicast patch for Mac address"
+#		 default y
+#		 depends on RTL_HARDWARE_MULTICAST && !OPENWRT_SDK
+#		 depends on RTL_8196E || RTL_8881A || RTL_8198C || RTL_8197F
 
 	config RTL_HW_MCAST_WIFI
 		bool "Support hw multiast for eth+wlan client"
-		default y
+		default n
 		depends on RTL_HARDWARE_MULTICAST
-
 
 	config RTL_EXT_PORT_SUPPORT
 		bool "Enable extension port support"
 		default n
 		depends on RTL_HW_NAPT && !OPENWRT_SDK
-
-	config RTL_CPU_TAG
-		bool "Enable CPU tag"
-		default n
-		---help---
-		Enable CPU tag between MAC0/MAC5 and external switch.
-		Extra 4 bytes are inserted after SA MAC address in each packet.
-
-	config RTL_WAN_MAC5
-		bool "Set MAC5 as WAN port"
-		default n
-		---help---
-		Disable original WAN (MAC4) port, and use MAC5 as WAN port.
-
-	config RTL_2_RGMII_PORTS_ONLY
-		bool "Set MAC5 as WAN port and MAC0 as LAN port"
-		default n
-		---help---
-		Disable original WAN (MAC4) port.
-		Use MAC5 as WAN port, and MAC0 as LAN port.
 
 	config RTL_NETIF_MAPPING
 		bool
@@ -316,24 +291,15 @@ menu "Config for Layered Driver Features"
 
 	config RTL_TSO
 		bool "Enable hardware TSO support(GSO is needed)"
-		default y
-		depends on RTL_8197F
+		default n
+		depends on RTL_8197F && !RTL_IPTABLES_FAST_PATH
 		select RTL_GSO
 
 	config RTL_GSO
 		bool "Enable software GSO support"
-		default y if RTL_8198C || RTL_819XD || RTL_8881A
-		depends on RTL_8197F || RTL_8198C || RTL_819XD || RTL_8881A
+		default n if RTL_8198C || RTL_819XD || RTL_8881A
+		depends on (RTL_8197F || RTL_8198C || RTL_819XD || RTL_8881A) && !RTL_IPTABLES_FAST_PATH
 
-endmenu
-
-menu "Config Multicast Options"
-	depends on RTL_IGMP_SNOOPING
-
-	config RTL_PROCESS_PPPOE_IGMP_FOR_BRIDGE_FORWARD
-		bool "IGMP/MLD Support for PPPoE Connection"
-		#WE DON'T TURN ON THIS FEATURE WITHOUT TESTING.
-		default n
 endmenu
 
 config RTL_IPTABLES_RULE_2_ACL
@@ -426,11 +392,12 @@ config RTL_HARDWARE_MULTICAST
 	depends on RTL_IGMP_SNOOPING
 
 config RTL_HARDWARE_MULTICAST_CAM
-    bool "HW multicast cam support"
+	#bool "HW multicast cam support"
+	bool
 	default n
 	depends on RTL_LAYERED_DRIVER
 	depends on RTL_HARDWARE_MULTICAST
-#	depends on RTL_8196E || RTL_819XD
+	depends on RTL_8196E || RTL_819XD
 
 config RTL_HARDWARE_NAT
 	bool
@@ -447,11 +414,6 @@ config RTL865X_HW_PPTPL2TP
 	bool
 	default n
 	depends on RTL_HARDWARE_NAT
-
-config RTL_IPV6READYLOGO
-	bool "IPv6: ready logo patch"
-	depends on IPV6
-	default n
 
 config RTL_HARDWARE_IPV6_SUPPORT
 	bool "Enable hardware ipv6 support"
@@ -483,6 +445,11 @@ config RTL_MULTI_LAN_DEV
 	bool "Multiple lan dev support"
 	default y
 	depends on (RTL_8198C || RTL_8197F) && !RTL_8021Q_VLAN_SUPPORT_SRC_TAG
+
+config RTL_MULTI_LAN_DEV_SUPPORT_LINUX_BONDING
+    bool "Multi lan support linux bonding"
+    default n
+    depends on RTL_MULTI_LAN_DEV
 
 config RTL_EEE_DISABLED
 	bool "Disable 802.3az EEE feature"
@@ -531,27 +498,12 @@ config RTL_REDIRECT_ACL_SUPPORT_FOR_ISP_MULTI_WAN
 	depends on RTL_ISP_MULTI_WAN_SUPPORT
 	depends on RTL_HW_NAPT
 
-#config RTL_IGMP_PROXY_MULTIWAN
-#	bool "Enable igmpproxy for multi wan"
-#	default n
-#	depends on RTL_ISP_MULTI_WAN_SUPPORT
-#	depends on RTL_IGMP_PROXY
-
-#config RTL_ISP_MULTIPLE_BR_SUPPORT
-#        bool "Enable multiple bridge support for igmp snooping"
-#        default n
-#        depends on RTL_ISP_MULTI_WAN_SUPPORT
-#        depends on RTL_IGMP_SNOOPING
-
 config RT_MULTIPLE_BR_SUPPORT
 	bool
 	default y
 	depends on RTL_IGMP_SNOOPING && VLAN_8021Q
 	depends on !OPENWRT_SDK
 
-config RTL_BR_SHORTCUT
-	bool "Enable bridge shortcut between LAN and WiFi"
-	default n
 
 config RTL_MULTICAST_PORT_MAPPING
 	bool
@@ -560,7 +512,7 @@ config RTL_MULTICAST_PORT_MAPPING
 
 config RTD_1295_MAC0_SGMII_LINK_MON
 	bool "Polling MAC0 link status"
-	default n
+	default y
 	depends on RTD_1295_HWNAT
 	---help---
 	  You can say N here if you could get interrupt event when MAC0 link change.

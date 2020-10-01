@@ -10,11 +10,6 @@
 * $Author: alva_zhang $
 *
 * ---------------------------------------------------------------
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
 */
 #ifndef _ASICREGS_H
 #define _ASICREGS_H
@@ -276,15 +271,6 @@ extern int8					*pVirtualSWTable;
 #define P0_EXT_PHY_ID				6
 #define EXT_SWITCH_MAX_PHY_PORT			5
 #endif
-
-#if defined(CONFIG_RTD_1295_HWNAT)
-#if defined(CONFIG_RTL_CPU_TAG)
-#if defined(CONFIG_RTL_836X_SUPPORT)
-#undef RTL83XX_WAN
-#define RTL83XX_WAN				0	// WAN port is set to 8367R port 0
-#endif /* CONFIG_RTL_836X_SUPPORT */
-#endif /* CONFIG_RTL_CPU_TAG */
-#endif /* CONFIG_RTD_1295_HWNAT */
 
 #define RTL865X_PORTMASK_UNASIGNED		0x5A5A5A5A
 #define RTL865X_PREALLOC_SKB_UNASIGNED		0xA5A5A5A5
@@ -1113,36 +1099,10 @@ to forward packet to the unauthorized node. Otherwise, it is not allowed.
 #define CCR					CSCR
 #define EPOCR					(0x04C+SWMACCR_BASE)	/* Embedded PHY Operation Control Register */
 #define EPIDR					(0x050+SWMACCR_BASE)	/* Embedded PHY ID Register */
-#define MACCR1					(0x058+SWMACCR_BASE)	/* MAC Configuration Register 1 */
-#define PISOCR0					(0x05C+SWMACCR_BASE)	/* Port Isolation 0 Register */
-#define PISOCR1					(0x060+SWMACCR_BASE)	/* Port Isolation 1 Register */
-#define PISOCR2					(0x064+SWMACCR_BASE)	/* Port Isolation 2 Register */
-#define MACCR2					(0x068+SWMACCR_BASE)	/* MAC Configuration Register 2 */
-
-/* MACCR2 - MAC control register 2 field definitions */
-#define RTMD_DP0_MAP_OFFSET			(20)		/* Configure dp 0 to p0 or p5 */
-#define RTMD_DP0_MAP_MASK			(3 << 20)
-#define SPA5_MAP_OFFSET				(15)		/* SPA 5 maps to real SPA */
-#define SPA5_MAP_MASK				(7 << 15)
-#define SPA4_MAP_OFFSET				(12)		/* SPA 4 maps to real SPA */
-#define SPA4_MAP_MASK				(7 << 12)
-#define SPA3_MAP_OFFSET				(9)		/* SPA 3 maps to real SPA */
-#define SPA3_MAP_MASK				(7 << 9)
-#define SPA2_MAP_OFFSET				(6)		/* SPA 2 maps to real SPA */
-#define SPA2_MAP_MASK				(7 << 6)
-#define SPA1_MAP_OFFSET				(3)		/* SPA 1 maps to real SPA */
-#define SPA1_MAP_MASK				(7 << 3)
-#define SPA0_MAP_OFFSET				(0)		/* SPA 0 maps to real SPA */
-#define SPA0_MAP_MASK				(7 << 0)
+#define MACCR1					(0x058+SWMACCR_BASE)	/* Embedded PHY ID Register */
 
 /* MACCR1 - MAC control register 1 field definitions */
-#define ROUTER_MODE_TYPE_MASK			(3 << 24)
-#define ROUTER_MODE_TYPE_3			(3 << 24)	/* port5 connect to switch, and only port0,4,5 work */
-#define ROUTER_MODE_TYPE_2			(2 << 24)	/* port0 connect to switch, and only port0,4,5 work */
-#define ROUTER_MODE_TYPE_1			(1 << 24)	/* both port0 and port5 connect to switch, only port0, 4, 5 work */
-#define ROUTER_MODE_TYPE_0			(0 << 24)	/* port 0 connect to switch, and only port0 work */
-#define ROUTER_MODE_TYPE_OFFSET			(24)
-#define EN_ROUTER_MODE				(1 << 0)	/* 1: enable router mode,  0: normal mode */
+#define PORT0_ROUTER_MODE			(1 << 0)	/* 1: enable Port0 as router mode,  0: normal mode */
 
 /* MACCR - MAC control register field definitions */
 #define NORMAL_BACKOFF				(1 << 28)	/* Normal back off slot timer */
@@ -2096,9 +2056,6 @@ to forward packet to the unauthorized node. Otherwise, it is not allowed.
 #define DSCPRM0					(0x70 + OQNCR_BASE)	/*DSCP Remarking Control Register 0 */
 #define DSCPRM1					(0x74 + OQNCR_BASE)	/*DSCP Remarking Control Register 1 */
 #define RLRC					(0x78 + OQNCR_BASE)	/*Remarking Layer Rule Control */
-#if defined(CONFIG_RTD_1295_HWNAT)
-#define IBCR4					(0x7C + OQNCR_BASE)	/* Ingress Bandwidth Control Register 4 */
-#endif /* CONFIG_RTD_1295_HWNAT */
 
 #if defined(CONFIG_RTL_8198C) || defined(CONFIG_RTL_8197F)
 #define OQNCR_BASE2				(SWCORE_BASE+0x5000)	/* Output Queue Number Control Registers for 98C */
@@ -2124,12 +2081,6 @@ to forward packet to the unauthorized node. Otherwise, it is not allowed.
 #define IBCR3_PORT_MASK				(0xf)
 #define IBCR3_PORT_OFFSET(port)			((port)<<2)
 #endif
-
-#if defined(CONFIG_RTD_1295_HWNAT)
-/* IBCR4 - Ingress Bandwidth Control Register 4 */
-#define IBWC_P6_MASK				(0x1fffff)	/* Port6 Ingress Bandwidth Control */
-#endif /* CONFIG_RTD_1295_HWNAT */
-
 /* IBCR0 - Ingress Bandwidth Control Register 0 */
 #define IBWC_P1_OFFSET				(16)	/* Port1 Ingress Bandwidth Control */
 #define IBWC_P1_MASK				(0xffff<<16)	/* Port1 Ingress Bandwidth Control */

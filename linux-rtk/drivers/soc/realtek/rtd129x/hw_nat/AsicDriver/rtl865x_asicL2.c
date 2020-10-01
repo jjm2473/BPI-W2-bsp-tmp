@@ -6,11 +6,6 @@
 *	PHY/MII/Port/STP/QOS
 * Abstract :
 * Author : hyking (hyking_liu@realsil.com.cn)
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
 */
 #include <net/rtl/rtl_types.h>
 #include <net/rtl/rtl_glue.h>
@@ -35,7 +30,7 @@
 #include <linux/gpio.h>
 #endif
 #if defined(CONFIG_RTD_1295_HWNAT)
-#include <soc/realtek/rtk_cpu.h>
+#include <soc/realtek/rtd129x_cpu.h>
 //#define RTL_DEBUG	1
 #ifdef RTL_DEBUG
 #define DBG(fmt, ...) printk(KERN_ERR "%s:%d: " fmt "\n", \
@@ -61,14 +56,12 @@ extern int rtl865x_duringReInitSwtichCore;
 #endif
 #if defined(CONFIG_RTD_1295_HWNAT)
 uint8 hwnat_mac0_enable = 0; /* 0: interface used by SATA, 1: interface used by NAT */
-uint8 hwnat_mac0_mode = 1; /* 0:RGMII to PHY, 1:SGMII to PHY, 2: RGMII to MAC, 3: SGMII to MAC */
+uint8 hwnat_mac0_mode = 1; /* 0:RGMII, 1:SGMII */
 uint8 hwnat_mac5_conn_to = 0; /* 0:PHY, 1:MAC */
 uint8 hwnat_rgmii_voltage = 1; /* 1:1.8V, 2:2.5V, 3:3.3V */
 uint8 hwnat_rgmii_enable = 1; /* 0:disable, 1:enable */
-uint8 hwnat_rgmii0_tx_delay = 0; /* 0 to 7: 0.5ns per step */
-uint8 hwnat_rgmii0_rx_delay = 4; /* 0 to 7: 0.5ns per step */
-uint8 hwnat_rgmii1_tx_delay = 0; /* 0 to 7: 0.5ns per step */
-uint8 hwnat_rgmii1_rx_delay = 4; /* 0 to 7: 0.5ns per step */
+uint8 hwnat_rgmii_tx_delay = 0; /* 0 to 7: 0.5ns per step */
+uint8 hwnat_rgmii_rx_delay = 4; /* 0 to 7: 0.5ns per step */
 uint8 hwnat_led_mode = 1;	/* 0~3: SCAN_0~3, 4~6: DIRECT 0~2 */
 #endif //defined(CONFIG_RTD_1295_HWNAT)
 
@@ -249,18 +242,9 @@ static rtl865xC_outputQueuePara_t	outputQueuePara[3] = {
 static uint32 rtl_portFCOFF=0x34c ;
 static uint32 rtl_portFCON=0x358;
 #elif defined(CONFIG_RTL_8197F)
-#if defined(CONFIG_RTD_1295_HWNAT)
-#define Q_DESC_FC_ON		0x48
-#define Q_DESC_FC_OFF		0x3C
-#define Q_PKT_FC_ON		0xAC
-#define Q_PKT_FC_OFF		0xA4
-#define Q_GAP			0x48
-static int32 rtd129x_setQosThreshold(void);
-#else
 // todo: need to find out
 static uint32 rtl_portFCOFF=0x1A6;
 static uint32 rtl_portFCON=0x1AC;
-#endif /* CONFIG_RTD_1295_HWNAT */
 #endif
 
 static void _rtl8651_syncToAsicEthernetBandwidthControl(void);
@@ -1507,10 +1491,10 @@ void Setting_RTL8196C_PHY(void)
 
 	/*
 	  #=========patch for eee============================
-	  #1. page4ï¿½Breg24ï¿½Glpi_rx_ti_timer_cnt change to f3
+	  #1. page4¡Breg24¡Glpi_rx_ti_timer_cnt change to f3
 	  phywb all 4 24 7-0 0xf3
 
-	  #2. page4ï¿½Breg16ï¿½Grg_txqt_ps_sel change to 1
+	  #2. page4¡Breg16¡Grg_txqt_ps_sel change to 1
 	  phywb all 4 16 3 1
 	*/
 	Set_GPHYWB(999, 4, 24, 0xff00, 0xf3);
@@ -6223,8 +6207,8 @@ void init_8325d(void)
 	REG32(PEFGH_DAT) |= (0x00020000);
 	mdelay(1000);
 
-	//I2C dataï¿½GGPIOG6, P0_RXD5
-	//I2C clockï¿½GGPIOG7, P0_RXD4
+	//I2C data¡GGPIOG6, P0_RXD5
+	//I2C clock¡GGPIOG7, P0_RXD4
 	WRITE_MEM32(PEFGH_CNR, READ_MEM32(PEFGH_CNR) & (~(0x00C00000)));	//set GPIO pin, G6 and G7
 	WRITE_MEM32(PEFGH_DIR, READ_MEM32(PEFGH_DIR) | ((0x00C00000))); //output pin
 
@@ -6730,8 +6714,8 @@ void initAsic_PHY(void)
 	rtl8651AsicEthernetTable[5].isGPHY = TRUE;
 
 	//choose interface of MAC0 to be embedded PHY1(0)
-	//0:RGMII to PHY, 1:SGMII to PHY, 2: RGMII to MAC, 3: SGMII to MAC
-	p0_type_cfg = ((hwnat_mac0_mode & 1) == 1 /*SGMII*/) ? Port0_TypeCfg_UTP : Port0_TypeCfg_GMII_MII_RGMII;
+	//0: SGMII, 1:RGMII
+	p0_type_cfg = (hwnat_mac0_mode == 1 /*SGMII*/) ? Port0_TypeCfg_UTP : Port0_TypeCfg_GMII_MII_RGMII;
 	WRITE_MEM32(PITCR, 	Port5_TypeCfg_GMII_MII_RGMII |
 				Port4_TypeCfg_UTP |
 				Port3_TypeCfg_UTP |
@@ -6844,32 +6828,11 @@ void initAsic_PHY(void)
 	rtl8651_restartAsicEthernetPHYNway(5);
 	DBG("finish to restart all PHYs");
 #else //!defined(CONFIG_FPGA_V6_HWNAT)
-	#if defined(CONFIG_RTL_CPU_TAG)
-	#if 0 /* use CPU tag on both MAC0 and MAC5 */
-	/* Set MAC1~4 port isolation, only can forward to CPU and MAC0/MAC5 (WAN) */
-	/* MAC0/MAC5 can forward to all ports */
-	WRITE_MEM32(PISOCR0, 0x1E1785FF);
-	WRITE_MEM32(PISOCR1, 0x1FF785E1);
-	#endif
-	#if 1 /* use CPU tag on only MAC0 */
-	/* Set MAC0~4 port isolation, only can forward to CPU and MAC5 (WAN) */
-	/* MAC5 can forward to all ports */
-	WRITE_MEM32(PISOCR0, 0x1E0781E0);
-	WRITE_MEM32(PISOCR1, 0x1FF781E0);
-	#endif
-	#if 0 /* use CPU tag on only MAC5 */
-	/* Set MAC0~4 port isolation, only can forward to CPU and MAC5 (WAN) */
-	/* MAC5 can forward to all ports */
-	WRITE_MEM32(PISOCR0, 0x1E0781E0);
-	WRITE_MEM32(PISOCR1, 0x1FF781E0);
-	#endif
-	#endif /* CONFIG_RTL_CPU_TAG */
-
 	//enable auto negotiation,
 	//turn on all advertise abilities,
 	//enable PHY interface of MAC0
 	if (hwnat_mac0_enable == 1 && hwnat_mac0_mode == 0 /*RGMII*/) {
-		WRITE_MEM32(PCRP0, (READ_MEM32(PCRP0) &
+		WRITE_MEM32(PCRP0, 	(READ_MEM32(PCRP0) &
 				~(ExtPHYID_MASK | EnForceMode | PollLinkStatus |
 				PauseFlowControl_MASK | AcptMaxLen_16K)) |
 				(rtl8651AsicEthernetTable[0].phyId << ExtPHYID_OFFSET) |
@@ -6884,12 +6847,11 @@ void initAsic_PHY(void)
 				AcptMaxLen_9K |
 #endif /* CONFIG_RTL_JUMBO_FRAME */
 				EnablePHYIf);
-		REG32(P0GMIICR) |= Conf_done;
 	}
 #ifdef CONFIG_RTD_1295_MAC0_SGMII_LINK_MON
 	else if (hwnat_mac0_enable == 1 && hwnat_mac0_mode == 1 /*SGMII*/ &&
 				(get_rtd129x_cpu_revision() == RTD129x_CHIP_REVISION_A00)) {
-		WRITE_MEM32(PCRP0, (READ_MEM32(PCRP0) &
+		WRITE_MEM32(PCRP0, 	(READ_MEM32(PCRP0) &
 				~(PauseFlowControl_MASK | AutoNegoSts_MASK |
 				PollLinkStatus | ForceLink | AcptMaxLen_16K)) |
 				EnForceMode |
@@ -6902,8 +6864,8 @@ void initAsic_PHY(void)
 				EnablePHYIf);
 	}
 #endif /* CONFIG_RTD_1295_MAC0_SGMII_LINK_MON */
-	else if (hwnat_mac0_enable == 1 && hwnat_mac0_mode == 1 /*SGMII*/) { /* get_rtd129x_cpu_revision() == RTD129x_CHIP_REVISION_A01 */
-		WRITE_MEM32(PCRP0, (READ_MEM32(PCRP0) &
+	else if (hwnat_mac0_enable == 1) { /* get_rtd129x_cpu_revision() == RTD129x_CHIP_REVISION_A01 */
+		WRITE_MEM32(PCRP0, 	(READ_MEM32(PCRP0) &
 				~(EnForceMode | PollLinkStatus |
 				PauseFlowControl_MASK | AcptMaxLen_16K)) |
 				NwayAbility1000MF |
@@ -6917,38 +6879,6 @@ void initAsic_PHY(void)
 				AcptMaxLen_9K |
 #endif /* CONFIG_RTL_JUMBO_FRAME */
 				EnablePHYIf);
-	} else if (hwnat_mac0_enable == 1 && (hwnat_mac0_mode & 2) > 0 /* to MAC */) {
-		//arrange PHY ID for MAC0,
-		//enable force link up,
-		//turn on 1000MF,
-		//disable TX/RX pause flow control,
-		//disable PHY interface of MAC0
-		WRITE_MEM32(PCRP0, (READ_MEM32(PCRP0) &
-				~(ExtPHYID_MASK | ForceSpeedMask | PollLinkStatus |
-				PauseFlowControl_MASK | AcptMaxLen_16K)) |
-				(rtl8651AsicEthernetTable[0].phyId << ExtPHYID_OFFSET) |
-				EnForceMode |
-				ForceLink |
-				ForceSpeed1000M |
-				ForceDuplex |
-				MIIcfg_RXER |
-#if defined(CONFIG_RTL_JUMBO_FRAME)
-				AcptMaxLen_9K |
-#endif /* CONFIG_RTL_JUMBO_FRAME */
-				MacSwReset);
-
-		if ((hwnat_mac0_mode & 1) == 0 /* RGMII */) {
-			#if defined(CONFIG_RTL_CPU_TAG)
-			REG32(P0GMIICR) |= (CFG_CPUC_TAG | CFG_TX_CPUC_TAG);
-			#endif /* CONFIG_RTL_CPU_TAG */
-
-			/* set tx and rx delay */
-			WRITE_MEM32(P0GMIICR, (READ_MEM32(P0GMIICR) & ~((3 << 18) | (1 << 4) | (7 << 0))) |
-				((hwnat_rgmii1_tx_delay & 3) << 18) |
-				(((hwnat_rgmii1_tx_delay & 4) >> 2) << 4) |
-				((hwnat_rgmii1_rx_delay & 7) << 0));
-			REG32(P0GMIICR) |= Conf_done;
-		}
 	} else { /* hwnat_mac0_enable == 0 */
 		/* write default value */
 		WRITE_MEM32(PCRP0,
@@ -7004,7 +6934,7 @@ void initAsic_PHY(void)
 		//arrange PHY ID for MAC5,
 		//enable force link up,
 		//turn on 1000MF,
-		//disable TX/RX pause flow control,
+		//enable TX/RX pause flow control,
 		//disable PHY interface of MAC5
 		WRITE_MEM32(PCRP5, (READ_MEM32(PCRP5) &
 				~(ExtPHYID_MASK | ForceSpeedMask | PollLinkStatus |
@@ -7015,9 +6945,7 @@ void initAsic_PHY(void)
 				ForceSpeed1000M |
 				ForceDuplex |
 				MIIcfg_RXER |
-#if defined(CONFIG_RTL_2_RGMII_PORTS_ONLY)
 				PauseFlowControlEtxErx |
-#endif /* CONFIG_RTL_2_RGMII_PORTS_ONLY */
 #if defined(CONFIG_RTL_JUMBO_FRAME)
 				AcptMaxLen_9K |
 #endif /* CONFIG_RTL_JUMBO_FRAME */
@@ -7026,30 +6954,16 @@ void initAsic_PHY(void)
 
 		/* set tx and rx delay */
 		WRITE_MEM32(P5GMIICR, (READ_MEM32(P5GMIICR) & ~((3 << 18) | (1 << 4) | (7 << 0))) |
-				((hwnat_rgmii0_tx_delay & 3) << 18) |
-				(((hwnat_rgmii0_tx_delay & 4) >> 2) << 4) |
-				((hwnat_rgmii0_rx_delay & 7) << 0));
+				((hwnat_rgmii_tx_delay & 3) << 18) |
+				(((hwnat_rgmii_tx_delay & 4) >> 2) << 4) |
+				((hwnat_rgmii_rx_delay & 7) << 0));
 	}
 
 	//assign MAC5 to be GMII MAC auto mode
 	//WRITE_MEM32(P5GMIICR, (READ_MEM32(P5GMIICR) & ~(3 << 23)) | (0x1 << 23));
 	rtl865xC_setAsicEthernetMIIMode(5, LINK_RGMII);
-	#if defined(CONFIG_RTL_CPU_TAG)
-	//REG32(P5GMIICR) |= (CFG_CPUC_TAG | CFG_TX_CPUC_TAG);
-	/* enable router mode and let port5 connect to switch */
-	//REG32(MACCR1) |= (EN_ROUTER_MODE | ROUTER_MODE_TYPE_1); /* MAC0 and MAC5 connect to switch */
-	//REG32(MACCR1) |= (EN_ROUTER_MODE | ROUTER_MODE_TYPE_3); /* only MAC5 connects to switch */
-	REG32(MACCR1) |= (EN_ROUTER_MODE | ROUTER_MODE_TYPE_2); /* MAC0 connect to switch, MAC5 is WAN */
-	REG32(MACCR2) = (4 << SPA0_MAP_OFFSET) |
-			(1 << SPA1_MAP_OFFSET) |
-			(2 << SPA2_MAP_OFFSET) |
-			(3 << SPA3_MAP_OFFSET) |
-			(5 << SPA4_MAP_OFFSET) |
-			(0 << SPA5_MAP_OFFSET) ;
-	#endif /* CONFIG_RTL_CPU_TAG */
 	REG32(P5GMIICR) |= Conf_done;
 
-	#if !defined(CONFIG_RTL_CPU_TAG)
 	//enable force mode
 	//turn off all advertise abilities,
 	//disable PHY interface of MAC1
@@ -7072,12 +6986,6 @@ void initAsic_PHY(void)
 	WRITE_MEM32(PCRP3, 	(READ_MEM32(PCRP3) & ~(PollLinkStatus | NwayAbility1000MF |
 				NwayAbility100MF | NwayAbility100MH | NwayAbility10MF | NwayAbility10MH |
 				EnablePHYIf)) | EnForceMode);
-	#endif /* !CONFIG_RTL_CPU_TAG */
-
-#if defined(CONFIG_RTL_JUMBO_FRAME)
-	WRITE_MEM32(PCRP6, 	(READ_MEM32(PCRP6) & ~(AcptMaxLen_16K)) |
-				AcptMaxLen_9K);
-#endif /* CONFIG_RTL_JUMBO_FRAME */
 
 	/* set "System clock selection" to 100MHz
 		2'b00: 50MHz, 2'b01: 100MHz, 2'b10, 2'b11 reserved
@@ -7391,8 +7299,8 @@ int32 rtl865x_initAsicL2(rtl8651_tblAsic_InitPara_t *para)
 #elif defined(CONFIG_RTL_8197F)
 	#if defined(CONFIG_RTD_1295_HWNAT)
 	REG32(LEDCR0) = (REG32(LEDCR0) & ~(LEDTOPOLOGY_MASK | (3 << 10))) |
-			((hwnat_led_mode & 3) << 10) |
-			((hwnat_led_mode & 4) ? LEDMODE_DIRECT : LEDMODE_SCAN);
+		((hwnat_led_mode & 3) << 10) |
+		((hwnat_led_mode & 4) ? LEDMODE_DIRECT : LEDMODE_SCAN);
 	#else /* CONFIG_RTD_1295_HWNAT */
 	#if !defined(CONFIG_RTL_8367R_SUPPORT)
 	{
@@ -7409,7 +7317,7 @@ int32 rtl865x_initAsicL2(rtl8651_tblAsic_InitPara_t *para)
 	REG32(PIN_MUX_SEL15) = ((REG32(PIN_MUX_SEL15)&(0xFFFFFF00)) | (0x77));
 #endif
 	REG32(LEDCR0) = (REG32(LEDCR0) & ~LEDTOPOLOGY_MASK) | LEDMODE_DIRECT;
-	#endif /* CONFIG_RTD_1295_HWNAT */
+	#endif /*CONFIG_RTD_1295_HWNAT)*/
 #endif
 #endif
 
@@ -7677,13 +7585,9 @@ int32 rtl865x_initAsicL2(rtl8651_tblAsic_InitPara_t *para)
 		WRITE_MEM32(PBPCR, 0);
 
 #if defined(CONFIG_RTL_8198C) || defined(CONFIG_RTL_8197F)
-#if defined(CONFIG_RTD_1295_HWNAT)
-		/* Set the threshold value for qos sytem */
-		rtd129x_setQosThreshold();
-#else
 		for(index=0;index<=CPU;index++)
 			rtl8651_setAsicPortBasedFlowControlRegister(PHY0+index,rtl_portFCON , rtl_portFCOFF);
-#endif /* CONFIG_RTD_1295_HWNAT */
+
 #elif defined(CONFIG_RTL_8196C) || defined(CONFIG_RTL_8198)
 		/* Set the threshold value for qos sytem */
 		_rtl865x_setQosThresholdByQueueIdx(QNUM_IDX_123);
@@ -8218,8 +8122,8 @@ int32 rtl865x_set_jumbo_frame_size(uint32 size, int op_mode)
 	WRITE_MEM32(PCRP3, (READ_MEM32(PCRP3)&(~AcptMaxLen_16K)) | MacSwReset ); /* Jumbo Frame */
 	if (op_mode != 0) //not GATEWAY_MODE
 		WRITE_MEM32(PCRP4, (READ_MEM32(PCRP4)&(~AcptMaxLen_16K)) | MacSwReset ); /* Jumbo Frame */
-	#endif /* CONFIG_RTD_1295_HWNAT */
 	WRITE_MEM32(PCRP6, (READ_MEM32(PCRP6)&(~AcptMaxLen_16K)) | MacSwReset ); /* Jumbo Frame */
+	#endif /* CONFIG_RTD_1295_HWNAT */
 	switch(size){
 		case 1552:
 			#if defined(CONFIG_RTD_1295_HWNAT)
@@ -8233,8 +8137,8 @@ int32 rtl865x_set_jumbo_frame_size(uint32 size, int op_mode)
 			WRITE_MEM32(PCRP3, READ_MEM32(PCRP3) | (AcptMaxLen_1552|MacSwReset) ); /* Jumbo Frame */
 			if (op_mode != 0) //not GATEWAY_MODE
 				WRITE_MEM32(PCRP4, READ_MEM32(PCRP4) | (AcptMaxLen_1552|MacSwReset) ); /* Jumbo Frame */
-			#endif /* CONFIG_RTD_1295_HWNAT */
 			WRITE_MEM32(PCRP6, READ_MEM32(PCRP6) | (AcptMaxLen_1552|MacSwReset) ); /* Jumbo Frame */
+			#endif /* CONFIG_RTD_1295_HWNAT */
 			break;
 		case 9000:
 			#if defined(CONFIG_RTD_1295_HWNAT)
@@ -8248,8 +8152,8 @@ int32 rtl865x_set_jumbo_frame_size(uint32 size, int op_mode)
 			WRITE_MEM32(PCRP3, READ_MEM32(PCRP3) | (AcptMaxLen_9K|MacSwReset) ); /* Jumbo Frame */
 			if (op_mode != 0) //not GATEWAY_MODE
 				WRITE_MEM32(PCRP4, READ_MEM32(PCRP4) | (AcptMaxLen_9K|MacSwReset) ); /* Jumbo Frame */
-			#endif /* CONFIG_RTD_1295_HWNAT */
 			WRITE_MEM32(PCRP6, READ_MEM32(PCRP6) | (AcptMaxLen_9K|MacSwReset) ); /* Jumbo Frame */
+			#endif /* CONFIG_RTD_1295_HWNAT */
 			break;
 		case 16000:
 			#if defined(CONFIG_RTD_1295_HWNAT)
@@ -8263,8 +8167,8 @@ int32 rtl865x_set_jumbo_frame_size(uint32 size, int op_mode)
 			WRITE_MEM32(PCRP3, READ_MEM32(PCRP3) | (AcptMaxLen_16K|MacSwReset) ); /* Jumbo Frame */
 			if (op_mode != 0) //not GATEWAY_MODE
 				WRITE_MEM32(PCRP4, READ_MEM32(PCRP4) | (AcptMaxLen_16K|MacSwReset) ); /* Jumbo Frame */
-			#endif /* CONFIG_RTD_1295_HWNAT */
 			WRITE_MEM32(PCRP6, READ_MEM32(PCRP6) | (AcptMaxLen_16K|MacSwReset) ); /* Jumbo Frame */
+			#endif /* CONFIG_RTD_1295_HWNAT */
 			break;
 		default:
 			return 1;
@@ -9358,14 +9262,6 @@ int32 rtl8651_setAsicPortIngressBandwidth( enum PORTID port, uint32 bandwidth)
 	uint32 bandwidth_high = 0;
 	#endif
 
-	#if defined(CONFIG_RTD_1295_HWNAT)
-	/* ingress bandwidth control of CPU port */
-	if (port == CPU) {
-		WRITE_MEM32(IBCR4, ((READ_MEM32(IBCR4) & (~(IBWC_P6_MASK))) | (bandwidth & IBWC_P6_MASK)));
-		return SUCCESS;
-	}
-	#endif /* CONFIG_RTD_1295_HWNAT */
-
 	/* For ingress bandwidth control, its only for PHY0 to PHY5 */
 	if ((port < PHY0) || (port > PHY5))
 		return FAILED;
@@ -10125,43 +10021,6 @@ static int32 _rtl865x_setQosThresholdByQueueIdx(uint32 qidx)
 	return SUCCESS;
 }
 #endif
-
-#if defined(CONFIG_RTD_1295_HWNAT)
-static int32 rtd129x_setQosThreshold(void)
-{
-	/* Set the threshold value for qos sytem */
-	int32 retval;
-	int32 i, j;
-
-	for (i = 0; i < RTL8651_OUTPUTQUEUE_SIZE; i++) {
-		retval = rtl8651_setAsicQueueDescriptorBasedFlowControlRegister(0, i, Q_DESC_FC_ON, Q_DESC_FC_OFF);
-		if (retval != SUCCESS) {
-			pr_err("Set Queue Descriptor Base Flow Control Para Error.\n");
-			return retval;
-		}
-		for (j = 1; j <= CPU; j++)
-			rtl8651_setAsicQueueDescriptorBasedFlowControlRegister(PHY0+j, i, Q_DESC_FC_ON, Q_DESC_FC_OFF);
-
-
-		retval = rtl8651_setAsicQueuePacketBasedFlowControlRegister(0, i, Q_PKT_FC_ON, Q_PKT_FC_OFF);
-		if (retval!= SUCCESS) {
-			pr_err("Set Queue Packet Base Flow Control Para Error.\n");
-			return retval;
-		}
-		for ( j = 1; j <= CPU; j++)
-			rtl8651_setAsicQueuePacketBasedFlowControlRegister(PHY0+j, i, Q_PKT_FC_ON, Q_PKT_FC_OFF);
-
-	}
-
-	retval = rtl8651_setAsicPerQueuePhysicalLengthGapRegister(Q_GAP);
-	if (retval!= SUCCESS) {
-		pr_err("Set Queue Physical Lenght Gap Reg Error.\n");
-		return retval;
-	}
-
-	return SUCCESS;
-}
-#endif /* CONFIG_RTD_1295_HWNAT */
 
 #if defined(CONFIG_RTL_HW_QOS_SUPPORT)
 static int32 _rtl865xC_QM_init( void )

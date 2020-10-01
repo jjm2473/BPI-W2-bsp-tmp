@@ -1,21 +1,13 @@
-/*
- * Copyright (C) 2017 Realtek Semiconductor Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
-
 
 #include <linux/clk.h>   // clk_get
 #include <linux/clk-provider.h>
-#include <linux/reset.h> // reset_control_get
+#include <linux/reset-helper.h> // rstc_get
+#include <linux/reset.h>
+#include <linux/power-control.h>
 #include <linux/delay.h>
 #include <net/rtl/rtl_types.h>
 #include <net/rtl/rtl_glue.h>
-#include <soc/realtek/power-control.h>
-#include <soc/realtek/rtk_cpu.h>
+#include <soc/realtek/rtd129x_cpu.h>
 #include "rtl865x_asicBasic.h"
 #include "rtl865x_asicCom.h"
 #include "rtl865x_asicL2.h"
@@ -47,26 +39,26 @@ extern void __iomem *rtl_hwnat_sata_mmio;
 
 extern rtl8651_tblAsic_ethernet_t	rtl8651AsicEthernetTable[];
 extern uint8 hwnat_mac0_enable; /* 0: interface used by SATA, 1: interface used by NAT */
-extern uint8 hwnat_mac0_mode; /* 0:RGMII to PHY, 1:SGMII to PHY, 2: RGMII to MAC, 3: SGMII to MAC */
+extern uint8 hwnat_mac0_mode; /* 0:RGMII, 1:SGMII */
 extern uint8 hwnat_mac5_conn_to; /* 0:PHY, 1:MAC */
 extern uint8 hwnat_rgmii_voltage; /* 1:1.8V, 2:2.5V, 3:3.3V */
 extern uint8 hwnat_rgmii_enable; /* 0:disable, 1:enable */
 
-void rtd129x_hwnat_set_sata_pllddsa(struct device *dev)
+void rtd129x_hwnat_set_sata_pllddsa(void)
 {
 	uint32 val;
 	/* GET reset control */
-	struct reset_control *rstc_sata_0 = reset_control_get(dev, "sata_0");
-	struct reset_control *rstc_sata_phy_0 = reset_control_get(dev, "sata_phy_0");
-	struct reset_control *rstc_sata_phy_pow_0 = reset_control_get(dev, "sata_phy_pow_0");
-	struct reset_control *rstc_sata_func_exist_0 = reset_control_get(dev, "sata_func_exist_0");
-	struct reset_control *rstc_sds_phy = reset_control_get(dev, "rstn_sds_phy");
+	struct reset_control *rstc_sata_0 = rstc_get("rstn_sata_0");
+	struct reset_control *rstc_sata_phy_0 = rstc_get("rstn_sata_phy_0");
+	struct reset_control *rstc_sata_phy_pow_0 = rstc_get("rstn_sata_phy_pow_0");
+	struct reset_control *rstc_sata_func_exist_0 = rstc_get("sata_func_exist_0");
+	struct reset_control *rstc_sds_phy = rstc_get("rstn_sds_phy");
 
 	/* GET clock */
-	struct clk *clk_en_sata_0 = clk_get(dev, "sata_0");
-	struct clk *clk_en_sata_alive_0 = clk_get(dev, "sata_alive_0");
-	struct clk *clk_en_sata_1 = clk_get(dev, "sata_1");
-	struct clk *clk_en_sata_alive_1 = clk_get(dev, "sata_alive_1");
+	struct clk *clk_en_sata_0 = clk_get(NULL, "clk_en_sata_0");
+	struct clk *clk_en_sata_alive_0 = clk_get(NULL, "clk_en_sata_alive_0");
+	struct clk *clk_en_sata_1 = clk_get(NULL, "clk_en_sata_1");
+	struct clk *clk_en_sata_alive_1 = clk_get(NULL, "clk_en_sata_alive_1");
 
 	/* release SATA0 reset */
 	#if 1
@@ -147,22 +139,17 @@ void rtd129x_hwnat_set_sata_pllddsa(struct device *dev)
 	val |= (1 << SYS_PLL_SSC_DIG_DDSA0_OC_EN_DDSA_shift);
 	CLK_SYS_WRITE_MEM32(SYS_PLL_SSC_DIG_DDSA0, val);
 	mdelay(50);
-
-	reset_control_put(rstc_sata_0);
-	reset_control_put(rstc_sata_phy_0);
-	reset_control_put(rstc_sata_phy_pow_0);
-	reset_control_put(rstc_sata_func_exist_0);
-	reset_control_put(rstc_sds_phy);
 }
 
-void rtd129x_hwnat_set_pllddsb(struct device *dev)
+void rtd129x_hwnat_set_pllddsb(void)
 {
 	uint32 val;
-	struct clk *clk_pllddsb = clk_get(dev, "pll_ddsb");
+	struct clk *clk_pllddsb = clk_get(NULL, "pll_ddsb");
 
 	/* check if it is alreay set */
 	val = CLK_SYS_READ_MEM32(SYS_PLL_DDSB2);
 	if (SYS_PLL_DDSB2_get_REG_PLLDDSB_OEB(val) == 0 /* enable */) {
+		/* ask clk driver to keep clk_pllddsb */
 		clk_prepare_enable(clk_pllddsb);
 		return;
 	}
@@ -182,47 +169,23 @@ void rtd129x_hwnat_set_pllddsb(struct device *dev)
 	val = CLK_SYS_READ_MEM32(SYS_PLL_DDSB2);
 	val &= ~(1 << SYS_PLL_DDSB2_REG_PLLDDSB_OEB_shift); /* enable */
 	CLK_SYS_WRITE_MEM32(SYS_PLL_DDSB2, val);
+
+	/* ask clk driver to keep clk_pllddsb */
 	clk_prepare_enable(clk_pllddsb);
 }
 
-void rtd129x_hwnat_reset_nat(struct device *dev)
-{
-	/* GET clock */
-	struct clk *clk_en_nat = clk_get(dev, "nat");
-
-	/* GET reset control */
-	struct reset_control *rstc_nat = reset_control_get(dev, "nat");
-
-	/* GET power control */
-	struct power_control *pctrl = power_control_get("pctrl_nat");
-
-	clk_disable_unprepare(clk_en_nat);
-	reset_control_assert(rstc_nat);
-
-	power_control_power_off(pctrl);
-
-	mdelay(10);
-
-	power_control_power_on(pctrl);
-
-	reset_control_deassert(rstc_nat);
-	clk_prepare_enable(clk_en_nat);
-
-	reset_control_put(rstc_nat);
-}
-
-void rtd129x_hwnat_set_etn_clk(struct device *dev)
+void rtd129x_hwnat_set_etn_clk(void)
 {
 	uint32 val;
 	/* GET clock */
-	struct clk *clk_en_nat = clk_get(dev, "nat");
-	struct clk *clk_en_etn_sys = clk_get(dev, "etn_sys");
-	struct clk *clk_en_etn_250m = clk_get(dev, "etn_250m");
+	struct clk *clk_en_nat = clk_get(NULL, "clk_en_nat");
+	struct clk *clk_en_etn_sys = clk_get(NULL, "clk_en_etn_sys");
+	struct clk *clk_en_etn_250m = clk_get(NULL, "clk_en_etn_250m");
 
 	/* GET reset control */
-	struct reset_control *rstc_gmac = reset_control_get(dev, "gmac");
-	struct reset_control *rstc_gphy = reset_control_get(dev, "gphy");
-	struct reset_control *rstc_nat = reset_control_get(dev, "nat");
+	struct reset_control *rstc_gmac = rstc_get("iso_rstn_gmac");
+	struct reset_control *rstc_gphy = rstc_get("iso_rstn_gphy");
+	struct reset_control *rstc_nat = rstc_get("rstn_nat");
 
 	/* check if it is alreay set */
 	#if 1
@@ -328,10 +291,6 @@ void rtd129x_hwnat_set_etn_clk(struct device *dev)
 	val |= 1 << SYS_CLOCK_ENABLE2_clk_en_nat_shift; /* enable */
 	CLK_SYS_WRITE_MEM32(SYS_CLOCK_ENABLE2, val);
 	#endif
-
-	reset_control_put(rstc_gmac);
-	reset_control_put(rstc_gphy);
-	reset_control_put(rstc_nat);
 }
 
 static void set_ext_phy(uint32_t phyid, uint32_t page, uint32_t reg, uint32_t val)
@@ -367,8 +326,8 @@ void rtd129x_hwnat_set_rgmii0_init(void)
 	uint32_t val;
 
 	if (hwnat_rgmii_enable > 0) {
-	/* Mux to MDC/MDIO */
-	CLK_SYS_WRITE_MEM32(SB2_MUXPAD_RG0, 0x05555555);
+		/* Mux to MDC/MDIO */
+		CLK_SYS_WRITE_MEM32(SB2_MUXPAD_RG0, 0x05555555);
 	}
 
 	/* SB2 spec, 1.8V/2.5V/3.3V */
@@ -421,13 +380,13 @@ void rtd129x_hwnat_set_rgmii1_init(void)
 	uint32_t val;
 
 	if (hwnat_rgmii_enable > 0) {
-	/* Mux to MDC/MDIO */
-	CLK_SYS_WRITE_MEM32(SB2_MUXPAD_RG1, 0x05555555);
+		/* Mux to MDC/MDIO */
+		CLK_SYS_WRITE_MEM32(SB2_MUXPAD_RG1, 0x05555555);
 
-	/* SB2 spec, mux MDC&MDIO pin for RGMII */
-	val = CLK_SYS_READ_MEM32(SB2_MUXPAD_RG0) & ~(0xf << SB2_MUXPAD_RG0_rgmii0_mdio_shift);
-	val |= 0x5 << SB2_MUXPAD_RG0_rgmii0_mdio_shift;
-	CLK_SYS_WRITE_MEM32(SB2_MUXPAD_RG0, val);
+		/* SB2 spec, mux MDC&MDIO pin for RGMII */
+		val = CLK_SYS_READ_MEM32(SB2_MUXPAD_RG0) & ~(0xf << SB2_MUXPAD_RG0_rgmii0_mdio_shift);
+		val |= 0x5 << SB2_MUXPAD_RG0_rgmii0_mdio_shift;
+		CLK_SYS_WRITE_MEM32(SB2_MUXPAD_RG0, val);
 	}
 
 	/* SB2 spec, 1.8V/2.5V/3.3V */
@@ -653,7 +612,7 @@ static uint32_t rtd129x_switch_init(void)
 
 	//MAC0
 	if (hwnat_mac0_enable > 0) {
-		if ((hwnat_mac0_mode & 1) == 0 /*RGMII*/) {
+		if (hwnat_mac0_mode == 0 /*RGMII*/) {
 			/* PHYID assignment */
 			/* RGMII1/MAC0 */
 			/* arrange external PHY ID for port 0 */
@@ -675,7 +634,7 @@ static uint32_t rtd129x_switch_init(void)
 
 			/* RGMII mode */
 			val = READ_MEM32(P0GMIICR) & ~CFG_GMAC_MASK;
-			val |= CFG_GMAC_RGMII;
+			val |= CFG_GMAC_RGMII | Conf_done;
 			WRITE_MEM32(P0GMIICR, val);
 
 			/* external PHY RTL8211F init */
@@ -802,7 +761,7 @@ static uint32_t rtd129x_switch_init(void)
 	return ret;
 }
 
-static uint32_t rtd129x_system_init(struct device *dev)
+static uint32_t rtd129x_system_init(void)
 {
 	uint32_t val;
 	uint32_t i;
@@ -812,12 +771,12 @@ static uint32_t rtd129x_system_init(struct device *dev)
 	if ((val != RTK1295_CPU_ID) && (val != RTK1296_CPU_ID))
 		return val;
 
-	rtd129x_hwnat_set_pllddsb(dev);
-	rtd129x_hwnat_set_etn_clk(dev);
+	rtd129x_hwnat_set_pllddsb();
+	rtd129x_hwnat_set_etn_clk();
 
 	//MAC0
 	if (hwnat_mac0_enable > 0) {
-		if ((hwnat_mac0_mode & 1) == 0 /*RGMII*/) {
+		if (hwnat_mac0_mode == 0 /*RGMII*/) {
 			rtd129x_hwnat_set_rgmii1_init();
 		} else {	/*SGMII*/
 			/* workaround: set each MAC to force mode */
@@ -826,7 +785,7 @@ static uint32_t rtd129x_system_init(struct device *dev)
 				WRITE_MEM32(PCRP0+i*4, val);
 			}
 
-			rtd129x_hwnat_set_sata_pllddsa(dev);
+			rtd129x_hwnat_set_sata_pllddsa();
 		}
 	}
 
@@ -908,14 +867,14 @@ static void rtd129x_nic_setting(void)
 }
 #endif
 
-void rtd129x_hwnat_clk_init(struct device *dev)
+void rtd129x_hwnat_clk_init(void)
 {
 	uint32_t ret = 0;
 	struct power_control *pctrl = power_control_get("pctrl_nat");
 
 	power_control_power_on(pctrl);
 
-	if ((ret = rtd129x_system_init(dev)) != 0) {
+	if ((ret = rtd129x_system_init()) != 0) {
 		printk("Unknown RTD129X chip, ID = 0x%08x\n", ret);
 		return;
 	}

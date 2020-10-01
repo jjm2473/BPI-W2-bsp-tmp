@@ -3,11 +3,6 @@
 * All rights reserved.
 * Abstract :
 * Author : hyking (hyking_liu@realsil.com.cn)
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
 */
 #include <net/rtl/rtl_types.h>
 #include <net/rtl/rtl_glue.h>
@@ -418,9 +413,7 @@ int32 rtl865x_raiseEvent(int32 eventId,void *actionParam)
 	rtl865x_eventLayerList_t *eventLayerList;
 	rtl865x_event_t *event;
 	int retValue;
-#if defined(CONFIG_SMP)
-	unsigned long flags = 0;
-#endif
+
 	if(eventMgrInitFlag==FALSE)
 	{
 		return FAILED;
@@ -436,27 +429,7 @@ int32 rtl865x_raiseEvent(int32 eventId,void *actionParam)
 				{
 					do
 					{
-#if defined(CONFIG_SMP)
-						if ((event->eventId == EVENT_UPDATE_MCAST) ||
-								(event->eventId == EVENT_UPDATE_MCAST6)) {
-#if defined(CONFIG_HW_MCAST_DEBUG)
-							trace_printk("HW_MCAST:%s:%d eventId:%x event->eventId:%x START\n",
-									__func__, __LINE__, eventId, event->eventId);
-#endif
-							SMP_LOCK_ETH_EVENT(flags);
-						}
-#endif
 						retValue=event->event_action_fn(actionParam);
-#if defined(CONFIG_SMP)
-						if ((event->eventId == EVENT_UPDATE_MCAST) ||
-								(event->eventId == EVENT_UPDATE_MCAST6)) {
-							SMP_UNLOCK_ETH_EVENT(flags);
-#if defined(CONFIG_HW_MCAST_DEBUG)
-							trace_printk("HW_MCAST:%s:%d eventId:%x event->eventId:%x END\n",
-									__func__, __LINE__, eventId, event->eventId);
-#endif
-						}
-#endif
 					}while(retValue==EVENT_RE_EXECUTE);
 
 					switch(retValue)

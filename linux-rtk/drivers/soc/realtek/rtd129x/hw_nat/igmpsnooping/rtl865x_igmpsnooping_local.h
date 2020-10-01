@@ -1,10 +1,10 @@
 /*
 * Copyright c                  Realsil Semiconductor Corporation, 2006
 * All rights reserved.
-*
+* 
 * Program :  IGMP snooping function
-* Abstract :
-* Author :qinjunjie
+* Abstract : 
+* Author :qinjunjie 
 * Email:qinjunjie1980@hotmail.com
 *
 * This program is free software; you can redistribute it and/or modify
@@ -27,13 +27,13 @@
 	but it is used by customer's VoIP phone device.
  */
 #define IS_RESERVE_MULTICAST_MDNS_ADDR_V4(ipv4addr) 	((((uint32)(ipv4addr)) & 0xFFFFFFFF) == 0xE00000FB)//224.0.0.251
-#define IS_RESERVE_MULTICAST_MDNS_ADDR_V6(ipv6addr) 	(((ipv6addr[0] & 0xFFFFFFFF)==0xff020000)&&((ipv6addr[1] & 0xFFFFFFFF)==0x00000000)&&((ipv6addr[2] & 0xFFFFFFFF)==0x00000000)&&((ipv6addr[3] & 0xFFFFFFFF)==0x000000FB))
+#define IS_RESERVE_MULTICAST_MDNS_ADDR_V6(ipv6addr) 	(((ipv6addr[0] & 0xFFFFFFFF)==0xff020000)&&((ipv6addr[1] & 0xFFFFFFFF)==0x00000000)&&((ipv6addr[2] & 0xFFFFFFFF)==0x00000000)&&((ipv6addr[3] & 0xFFFFFFFF)==0x000000FB)) 
 #define RESERVE_MULTICAST_ADDR2 	0xE1010101	//225.1.1.1
 #define IN_MULTICAST_RESV1(addr)	((((uint32)(addr)) & 0xFFFFFF00) == 0xe0000000)	// 224.0.0.x
 #define IN_MULTICAST_RESV2(addr)	((((uint32)(addr)) & 0xFF000000) == 0xEF000000)	// 239.0.0.0~239.255.255.255
 
 #define IS_IPV6_MULTICAST_ADDRESS(ipv6addr)	((ipv6addr[0] & 0xFF000000)==0xff000000)
-#define IS_IPV4_MULTICAST_ADDRESS(ipv4addr)	(IS_CLASSD_ADDR(ipv4addr[0]))
+#define IS_IPV4_MULTICAST_ADDRESS(ipv4addr)	(IS_CLASSD_ADDR(ipv4addr[0]))		
 
 #define CONFIG_STATIC_RESERVED_MULTICAST
 #if defined (CONFIG_STATIC_RESERVED_MULTICAST)
@@ -69,14 +69,14 @@
 #define DEFAULT_MAX_FLOW_COUNT			256
 
 #define DEFAULT_LAST_MEMBER_AGINTGTIME 2
-#define DEFAULT_GROUP_MEMBER_INTERVAL 600             /* IGMP group member interval, default is 260 seconds */
+#define DEFAULT_GROUP_MEMBER_INTERVAL 260             /* IGMP group member interval, default is 260 seconds */
 #define DEFAULT_LAST_MEMBER_INTERVAL  10             /* IGMP last member query time, default is 2 seconds */
 #define DEFAULT_QUERIER_PRESENT_TIMEOUT 260             /* IGMP  querier present timeout, default is 260 seconds */
 
 #define DEFAULT_MCAST_FLOW_EXPIRE_TIME 	15
 
-#define DEFAULT_DVMRP_AGING_TIME		120
-#define DEFAULT_PIM_AGING_TIME		120
+#define DEFAULT_DVMRP_AGING_TIME		120           
+#define DEFAULT_PIM_AGING_TIME		120           
 #define DEFAULT_MOSPF_AGING_TIME		120
 
 #define DEFAULT_IPV4_UNKNOWN_MCAST_FLOOD_MAP	0x0
@@ -110,14 +110,14 @@
 
 #define PIM_PROTOCOL 103
 #define IPV4_PIM_ADDR 0xE000000D
-#define IS_IPV6_PIM_ADDR(ipv6addr) ((ipv6addr[0] == 0xFF020000)&&(ipv6addr[1] == 0x00000000)&&(ipv6addr[2] == 0x00000000)&&(ipv6addr[3] ==0x0000000D))
-
+#define IS_IPV6_PIM_ADDR(ipv6addr) ((ipv6addr[0] == 0xFF020000)&&(ipv6addr[1] == 0x00000000)&&(ipv6addr[2] == 0x00000000)&&(ipv6addr[3] ==0x0000000D)) 
+		
 #define MOSPF_PROTOCOL 89
 #define MOSPF_HELLO_TYPE 1
 #define IPV4_MOSPF_ADDR1  0xE0000005
 #define IPV4_MOSPF_ADDR2  0xE0000006
-#define IS_IPV6_MOSPF_ADDR1(ipv6addr) ((ipv6addr[0] == 0xFF020000)&&(ipv6addr[1] == 0x00000000)&&(ipv6addr[2] == 0x00000000)&&(ipv6addr[3] ==0x00000005))
-#define IS_IPV6_MOSPF_ADDR2(ipv6addr) ((ipv6addr[0] == 0xFF020000)&&(ipv6addr[1] == 0x00000000)&&(ipv6addr[2] == 0x00000000)&&(ipv6addr[3] ==0x00000006))
+#define IS_IPV6_MOSPF_ADDR1(ipv6addr) ((ipv6addr[0] == 0xFF020000)&&(ipv6addr[1] == 0x00000000)&&(ipv6addr[2] == 0x00000000)&&(ipv6addr[3] ==0x00000005)) 		
+#define IS_IPV6_MOSPF_ADDR2(ipv6addr) ((ipv6addr[0] == 0xFF020000)&&(ipv6addr[1] == 0x00000000)&&(ipv6addr[2] == 0x00000000)&&(ipv6addr[3] ==0x00000006)) 
 
 
 #define IGMP_PROTOCOL 2
@@ -128,10 +128,10 @@
 
 #define IS_MLD_ALL_HOSTS_ADDRESS(ipv6addr) ((ipv6addr[0] == 0xFF020000)&&(ipv6addr[1] == 0x00000000)&&(ipv6addr[2] == 0x00000000)&&(ipv6addr[3] ==0x00000001))
 
-
+	
 #define IS_MLD_ALL__ROUTER_ADDRESS(ipv6addr) ((ipv6addr[0] == 0xFF020000)&&(ipv6addr[1] ==0x00000000)&&(ipv6addr[2] ==0x00000000)&&(ipv6addr[3] == 0x00000002))
 
-
+	
 #define IS_MLDv2_REPORT_ADDRESS(ipv6addr) ((ipv6addr[0] == 0xFF020000)&&(ipv6addr[1] == 0x00000000)&&(ipv6addr[2] == 0x00000000)&&(ipv6addr[3] ==0x00000016))
 
 
@@ -172,13 +172,13 @@
 #define IPV6_ROUTER_ALTER_OPTION 0x05020000
 #define IPV6_HEADER_LENGTH 40
 
-/**********************IGMPv3 exponential field decoding ******************************/
+/**********************IGMPv3 exponential field decoding ******************************/ 
 #define	RTL_IGMPV3_MASK(value, nb)		((nb)>=32 ? (value) : ((1<<(nb))-1) & (value))
 #define	RTL_IGMPV3_EXP(thresh, nbmant, nbexp, value) \
 			((value) < (thresh) ? (value) : \
 			((RTL_IGMPV3_MASK(value, nbmant) | (1<<(nbmant))) << \
-			(RTL_IGMPV3_MASK((value) >> (nbmant), nbexp) + (nbexp))))
-
+			(RTL_IGMPV3_MASK((value) >> (nbmant), nbexp) + (nbexp))))		
+			
 #define	RTL_IGMPV3_QQIC(value)			RTL_IGMPV3_EXP(0x80, 4, 3, value)
 #define	RTL_IGMPV3_MRC(value)			RTL_IGMPV3_EXP(0x80, 4, 3, value)
 /********************************************************************************/
@@ -190,21 +190,21 @@
 	              ((value) < (thresh) ? (value) : \
 			((RTL_MLDV2_MASK(value, nbmant) | (1<<(nbmant))) << \
 			(RTL_MLDV2_MASK((value) >> (nbmant), nbexp) + (nbexp))))
-
+			
 #define   RTL_MLDV2_QQIC(value)			RTL_MLDV2_EXP(0x80, 4, 3, value)
 #define   RTL_MLDV2_MRC(value)			RTL_MLDV2_EXP(0x8000, 12, 3, value)
 /*------------------------------------------------------------------------------*/
 
-struct ipv4Pkt
+struct ipv4Pkt 
 {
-	uint8       vhl;
-	uint8	typeOfService;
+	uint8       vhl;            
+	uint8	typeOfService;			
 	uint16	length;			/* total length */
 	uint16	identification;	/* identification */
-	uint16	offset;
+	uint16	offset;			
 	uint8	ttl;				/* time to live */
-	uint8	protocol;
-	uint16	checksum;
+	uint8	protocol;			
+	uint16	checksum;			
 	uint32 sourceIp;
 	uint32 destinationIp;
 };
@@ -212,9 +212,9 @@ struct ipv4Pkt
 struct igmpPkt{
 	uint8 type;				      /* type*/
 	uint8 maxRespTime;                /*maximum response time,unit:0.1 seconds*/
-	uint16 checksum;
+	uint16 checksum;                   
 	uint32 groupAddr;
-
+	
 };
 
 struct igmpv1Pkt
@@ -229,9 +229,9 @@ struct igmpv2Pkt
 {
 	uint8 type;				      /* type*/
 	uint8 maxRespTime;                /*maximum response time,unit:0.1 seconds*/
-	uint16 checkSum;
+	uint16 checkSum;                   
 	uint32 groupAddr;
-
+	
 };
 
 struct igmpv3Query
@@ -243,7 +243,7 @@ struct igmpv3Query
 	uint8 rsq;					/* 4bit: reserved, 1bit: suppress router-side processing, 3bit: querier's robustness variable*/
 	uint8 qqic;					/* querier's query interval code */
 	uint16 numOfSrc;				/* number of sources */
-	uint32 srcList;				/* first entry of source list */
+	uint32 srcList;				/* first entry of source list */	
 };
 
 struct groupRecord
@@ -253,19 +253,19 @@ struct groupRecord
 	uint16	numOfSrc;			       /* number of sources */
 	uint32	groupAddr;			       /* group address being reported */
 	uint32	srcList;				       /* first entry of source list */
-
+	
 };
 
 struct igmpv3Report
 {
 	uint8	type;					/* Report Type */
-	uint8  reserved1;
+	uint8  reserved1;             
 	uint16 checkSum;					/*IGMP checksum*/
 	uint16 reserved2;
 	uint16	numOfRecords;			       /* number of Group records */
 	struct groupRecord recordList;       /*first entry of group record list*/
 };
-
+ 
 struct ipv6Pkt
 {
 	uint32     vtf;                 /*version(4bits),  traffic class(8bits), and flow label(20bits)*/
@@ -279,12 +279,12 @@ struct ipv6Pkt
 
 struct mldv1Pkt
 {
-	uint8 type;
+	uint8 type;                                   
 	uint8 code;						/*initialize by sender, ignored by receiver*/
 	uint16 checkSum;
-	uint16 maxResDelay;                       /*maximum response delay,unit:0.001 second*/
+	uint16 maxResDelay;                       /*maximum response delay,unit:0.001 second*/ 
 	uint16 reserved;
-	uint32 mCastAddr[4];                      /*ipv6 multicast address*/
+	uint32 mCastAddr[4];                      /*ipv6 multicast address*/  
 };
 
 
@@ -293,7 +293,7 @@ struct mldv2Query
 	uint8 type;
 	uint8 code;                                   /*initialize by sender, ignored by receiver*/
 	uint16 checkSum;
-	uint16 maxResCode;                      /*maximum response code,unit:0.001 second*/
+	uint16 maxResCode;                      /*maximum response code,unit:0.001 second*/ 
 	uint16 reserved;
 	uint32 mCastAddr[4];
 	uint8 rsq;	                               /* 4bits: reserved, 1bit: suppress router-side processing, 3bits: querier's robustness variable*/
@@ -314,9 +314,9 @@ struct mCastAddrRecord
 struct mldv2Report
 {
 	uint8 type;
-	uint8  reserved1;
-	uint16 checkSum;
-	uint16 reserved2;
+	uint8  reserved1;                                  
+	uint16 checkSum;                           
+	uint16 reserved2;                    
 	uint16 numOfRecords;				  /* number of multicast address records */
 	struct mCastAddrRecord recordList;
 };
@@ -331,7 +331,7 @@ struct ipv4MospfHdr
 	uint32 areaId;
 	uint16 CheckSum;
 	uint16 auType;
-	uint32 authentication[2];
+	uint32 authentication[2];	
 };
 
 struct ipv4MospfHello
@@ -392,7 +392,7 @@ struct ipv4PseudoHeader
 };
 
 
-union pseudoHeader
+union pseudoHeader 
 {
 	struct ipv6PseudoHeader ipv6_pHdr;
 	struct ipv4PseudoHeader ipv4_pHdr;
@@ -411,13 +411,10 @@ struct rtl_groupEntry
 	#endif
 
 	struct	rtl_clientEntry *clientList;
-#if defined (CONFIG_STATIC_RESERVED_MULTICAST)
+#if defined (CONFIG_STATIC_RESERVED_MULTICAST)	
 	uint32	attribute;
 	uint32 	staticFwdPortMask;
-#endif
-#if defined(CONFIG_HW_MCAST_DEBUG)
-	uint32 idx;
-#endif
+#endif	
 };
 
 struct rtl_clientEntry
@@ -434,9 +431,6 @@ struct rtl_clientEntry
 	struct rtl_sourceEntry *sourceList;	/*this is the server source ip list*/
 	uint32 groupFilterTimer;
 	uint8 clientMacAddr[6];
-#if defined(CONFIG_HW_MCAST_DEBUG)
-	uint32 idx;
-#endif
 };
 
 
@@ -448,9 +442,9 @@ struct rtl_sourceEntry
 	uint32 sourceAddr[1];                       /*D class IP multicast address*/
 	#endif
 	uint32 fwdState;
-	struct rtl_sourceEntry *previous;
+	struct rtl_sourceEntry *previous; 
 	struct rtl_sourceEntry *next;             /*Pointer of next group entry*/
-	uint32 portTimer;
+	uint32 portTimer;   
 };
 
 struct rtl_mcastFlowEntry
@@ -465,7 +459,7 @@ struct rtl_mcastFlowEntry
 	uint32 serverAddr[1];
 	uint32 groupAddr[1];
 	#endif
-
+	
 	struct rtl_multicastFwdInfo multicastFwdInfo;
 	uint32 refreshTime;
 };
@@ -482,7 +476,7 @@ struct rtl_groupEntry
 	uint32 groupAddr[1];
 	#endif
 	uint32 groupFilterTimer[MAX_SUPPORT_PORT_NUMBER];
-
+	
 };
 
 struct rtl_sourceEntry
@@ -492,14 +486,14 @@ struct rtl_sourceEntry
 	#else
 	uint32 sourceAddr[1];                       /*D class IP multicast address*/
 	#endif
-	struct rtl_sourceEntry *previous;
+	struct rtl_sourceEntry *previous; 
 	struct rtl_sourceEntry *next;             /*Pointer of next group entry*/
-	uint32 portTimer[MAX_SUPPORT_PORT_NUMBER];
+	uint32 portTimer[MAX_SUPPORT_PORT_NUMBER];   
 };
 #endif
 
 struct rtl_mcastRouter
-{
+{	
 	uint32 portTimer[MAX_SUPPORT_PORT_NUMBER];
 };
 
@@ -531,7 +525,7 @@ struct rtl_multicastRouters
 	 struct rtl_mcastRouter dvmrpRouter;
 	 struct rtl_mcastRouter mospfRouter;
 	 struct rtl_mcastRouter pimRouter;
-
+	 		 
 };
 #ifdef CONFIG_NEW_IGMP_IMPLEMENTATION
 //#define CONFIG_RECORD_MCAST_FLOW
@@ -547,23 +541,23 @@ struct rtl_multicastModule
 	uint8 enableFastLeave;
 
 	uint32 ipv4UnknownMCastFloodMap;
-#ifdef CONFIG_RTL_MLD_SNOOPING
+#ifdef CONFIG_RTL_MLD_SNOOPING		
 	uint32 ipv6UnknownMCastFloodMap;
 #endif
 	uint32 staticRouterPortMask;
-
+	
 	rtl_multicastDeviceInfo_t deviceInfo;
 
 	struct rtl_multicastRouters rtl_ipv4MulticastRouters;
-#ifdef CONFIG_RTL_MLD_SNOOPING
+#ifdef CONFIG_RTL_MLD_SNOOPING	
 	struct rtl_multicastRouters rtl_ipv6MulticastRouters;
 #endif
 
 	/*gateway infomation*/
 	uint8 rtl_gatewayMac[6];
 	uint32 rtl_gatewayIpv4Addr;
-
-#ifdef CONFIG_RTL_MLD_SNOOPING
+	
+#ifdef CONFIG_RTL_MLD_SNOOPING	
 	uint32 rtl_gatewayIpv6Addr[4];
 #endif
 
@@ -571,7 +565,7 @@ struct rtl_multicastModule
 	/*hash table definition*/
 	struct rtl_groupEntry ** rtl_ipv4HashTable;
 
-#ifdef CONFIG_RTL_MLD_SNOOPING
+#ifdef CONFIG_RTL_MLD_SNOOPING	
 	struct rtl_groupEntry ** rtl_ipv6HashTable;
 #endif
 
@@ -585,5 +579,5 @@ struct rtl_multicastModule
 };
 
 
-#endif
+#endif 
 

@@ -44,7 +44,8 @@
 
 #if defined(CONFIG_RTD_1295_HWNAT)
 #include <net/rtl/rtl_nic.h>
-#endif /* CONFIG_RTD_1295_HWNAT */
+#include <linux/proc_fs.h>
+#endif /* defined(CONFIG_RTD_1295_HWNAT) */
 
 #if defined CONFIG_RTL_8367_QOS_SUPPORT
 #define RTL8367_OUTPUTQUEUE_SIZE 8
@@ -147,7 +148,7 @@ static rtl_qos_mark_info_t	mark2Priority[NETIF_NUMBER][MAX_MARK_NUM_PER_DEV] = {
 rtl865x_qos_rule_t		*rtl865x_qosRuleHead = NULL;
 #if defined(CONFIG_RTD_1295_HWNAT)
 EXPORT_SYMBOL(rtl865x_qosRuleHead);
-#endif /* CONFIG_RTD_1295_HWNAT */
+#endif /* defined(CONFIG_RTD_1295_HWNAT) */
 extern int hw_qos_init_netlink(void);
 static int32 _rtl865x_qosArrangeRuleByNetif(uint8 *netIfName);
 
@@ -1110,7 +1111,7 @@ int32 rtl865x_qosArrangeRuleByNetif(void)
 }
 #if defined(CONFIG_RTD_1295_HWNAT)
 EXPORT_SYMBOL(rtl865x_qosArrangeRuleByNetif);
-#endif /* CONFIG_RTD_1295_HWNAT */
+#endif /* defined(CONFIG_RTD_1295_HWNAT) */
 
 static int32 _rtl865x_qosArrangeRuleByNetif(uint8 *netIfName)
 {
@@ -1274,9 +1275,6 @@ int32 rtl865x_qosAddMarkRule(rtl865x_qos_rule_t *rule)
 
 	return SUCCESS;
 }
-#if defined(CONFIG_RTD_1295_HWNAT)
-EXPORT_SYMBOL(rtl865x_qosAddMarkRule);
-#endif /* CONFIG_RTD_1295_HWNAT */
 
 int32 rtl865x_qosCheckNaptPriority(rtl865x_AclRule_t *qosRule)
 {
@@ -1346,7 +1344,7 @@ int32 rtl865x_qosFlushMarkRuleByDev(uint8 *netIfName)
 }
 #if defined(CONFIG_RTD_1295_HWNAT)
 EXPORT_SYMBOL(rtl865x_qosFlushMarkRuleByDev);
-#endif /* CONFIG_RTD_1295_HWNAT */
+#endif /* defined(CONFIG_RTD_1295_HWNAT) */
 
 int32 rtl865x_qosRearrangeRule(void)
 {
@@ -2442,7 +2440,7 @@ static int rtl865x_resetRemark(void)
 	rtl8651_resetAsicVlanRemark();
 	return SUCCESS;
 }
-#endif /* CONFIG_RTD_1295_HWNAT */
+#endif /* defined(CONFIG_RTD_1295_HWNAT) */
 
 int rtl_dump_configQosRemark_info(struct seq_file *s)
 {
@@ -2642,7 +2640,7 @@ static int32 rtl_hw_qos_config_write( struct file *filp, const char *buff,unsign
 			{
 				rtl865x_resetRemark();
 			}
-			#endif /* CONFIG_RTD_1295_HWNAT */
+			#endif /* defined(CONFIG_RTD_1295_HWNAT) */
 			else
 			{
 				goto errout;
@@ -2688,11 +2686,11 @@ static int32 rtl_hw_qos_config_write( struct file *filp, const char *buff,unsign
 			}
 			else if (strncmp(cmdptr, "reset",5) == 0)
 			{
-				for (port = 0; port <= CPU; port++)
+				for (port = 0; port < CPU; port++)
 					rtl865x_setIgressBandwidthByPort(port, 0);
 			}
 		}
-		#endif /* CONFIG_RTD_1295_HWNAT */
+		#endif /* defined(CONFIG_RTD_1295_HWNAT) */
 		#if defined(CONFIG_RTL_HW_QOS_BRIDGE_FWD_SUPPORT)
 		/*echo "add port 1 classId 1000 eth1" > /proc/rtl_hw_qos_config*/
 		else if (strncmp(cmdptr, "add",3) == 0) {

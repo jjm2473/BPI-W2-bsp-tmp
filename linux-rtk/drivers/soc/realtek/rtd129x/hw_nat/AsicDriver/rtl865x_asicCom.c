@@ -1464,18 +1464,16 @@ void rtl865x_start(void)
 	//REG32(CPUICR) = TXCMD | RXCMD | BUSBURST_32WORDS | MBUF_2048BYTES;
 	REG32(CPUICR) = TXCMD | RXCMD | BUSBURST_128WORDS | MBUF_2048BYTES;
 
-#if defined(CONFIG_RTD_1295_HWNAT)
-	REG32(DMA_CR0) = (REG32(DMA_CR0) & ~(LowFifoMark_MASK|HiFifoMark_MASK)) | ((0x80<<LowFifoMark_OFFSET)|0xC0);
-#else /* CONFIG_RTD_1295_HWNAT */
 #if defined(CONFIG_RTL_8197F)
 	// the HiFifoMark value will be reset to default value (0x57) after updated the burst size field of CPUICR
 	REG32(DMA_CR0) = (REG32(DMA_CR0) & ~(LowFifoMark_MASK|HiFifoMark_MASK)) | ((0xA0<<LowFifoMark_OFFSET)|0xA0);
 #endif
 
+#if !defined(CONFIG_RTD_1295_HWNAT)
 #if defined(CONFIG_RTL_8198C) || defined(CONFIG_RTL_8197F)
 	REG32(0xbb0c0000) = REG32(0xbb0c0000); // read entry 0 of ACL table to fix driver can't receive packet when lan un-plug
 #endif
-#endif /* CONFIG_RTD_1295_HWNAT */
+#endif //!defined(CONFIG_RTD_1295_HWNAT)
 
 	REG32(CPUIISR) = REG32(CPUIISR);
 #if 1

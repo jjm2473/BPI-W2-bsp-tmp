@@ -252,8 +252,7 @@ static int32 _rtl865x_initMCastEntryPool(void)
 {
 	int32 index;
 	rtl865x_tblDrv_mCast_t *multiCast_t;
-	struct MCast_hash_head *mCast_hash_head;
-	
+
 	TBL_MEM_ALLOC(multiCast_t, rtl865x_tblDrv_mCast_t ,MAX_MCAST_TABLE_ENTRY_CNT);
 	TAILQ_INIT(&mCastTbl.freeList.freeMultiCast);
 	for(index=0; index<MAX_MCAST_TABLE_ENTRY_CNT; index++)
@@ -262,10 +261,9 @@ static int32 _rtl865x_initMCastEntryPool(void)
 		TAILQ_INSERT_HEAD(&mCastTbl.freeList.freeMultiCast, &multiCast_t[index], nextMCast);
 	}
 
-	//TBL_MEM_ALLOC(multiCast_t, rtl865x_tblDrv_mCast_t, RTL8651_MULTICASTTBL_SIZE);
-	TBL_MEM_ALLOC(mCast_hash_head, struct MCast_hash_head, RTL8651_MULTICASTTBL_SIZE);
-	memset(mCast_hash_head, 0,RTL8651_MULTICASTTBL_SIZE* sizeof(struct MCast_hash_head));
-	mCastTbl.inuseList.mCastTbl = (void *)mCast_hash_head;
+	TBL_MEM_ALLOC(multiCast_t, rtl865x_tblDrv_mCast_t, RTL8651_MULTICASTTBL_SIZE);
+	memset(multiCast_t, 0,RTL8651_MULTICASTTBL_SIZE* sizeof(rtl865x_tblDrv_mCast_t));
+	mCastTbl.inuseList.mCastTbl = (void *)multiCast_t;
 
 	for(index=0; index<RTL8651_MULTICASTTBL_SIZE; index++)
 	{
@@ -757,7 +755,7 @@ static void _rtl865x_arrangeMulticast(uint32 entryIndex)
 		{
 			select_t->age = RTL865X_MULTICAST_TABLE_ASIC_AGE;
 			bzero(&asic_mcast, sizeof(rtl865x_tblAsicDrv_multiCastParam_t));
-			memcpy(&asic_mcast, select_t, (uintptr_t)&(((rtl865x_tblDrv_mCast_t *)0)->extIp));
+			memcpy(&asic_mcast, select_t, (uint32)&(((rtl865x_tblDrv_mCast_t *)0)->extIp));
 			if (select_t->extIp)
 			{
 
@@ -808,7 +806,7 @@ static void _rtl865x_arrangeMulticast(uint32 entryIndex)
 
 				select_t->age = RTL865X_MULTICAST_TABLE_ASIC_AGE;
 				bzero(&asic_mcast, sizeof(rtl865x_tblAsicDrv_multiCastParam_t));
-				memcpy(&asic_mcast, select_t, (uintptr_t)&(((rtl865x_tblDrv_mCast_t *)0)->extIp));
+				memcpy(&asic_mcast, select_t, (uint32)&(((rtl865x_tblDrv_mCast_t *)0)->extIp));
 
 				if (select_t->extIp)
 				{
@@ -2407,7 +2405,7 @@ void _rtl865x_timeUpdateMulticast(uint32 secPassed)
 }
 
 #if defined(__linux__) && defined(__KERNEL__)
-static void _rtl865x_mCastSysTimerExpired(unsigned long expireDada)
+static void _rtl865x_mCastSysTimerExpired(uint32 expireDada)
 {
 
 	_rtl865x_timeUpdateMulticast(1);
@@ -2417,9 +2415,11 @@ static void _rtl865x_mCastSysTimerExpired(unsigned long expireDada)
 
 static void _rtl865x_initMCastSysTimer(void)
 {
+
+	init_timer(&rtl865x_mCastSysTimer);
+	rtl865x_mCastSysTimer.data=rtl865x_mCastSysTimer.expires;
 	rtl865x_mCastSysTimer.expires=jiffies+HZ;
-	setup_timer(&rtl865x_mCastSysTimer, _rtl865x_mCastSysTimerExpired,
-			(unsigned long)rtl865x_mCastSysTimer.expires);
+	rtl865x_mCastSysTimer.function=(void*)_rtl865x_mCastSysTimerExpired;
 	add_timer(&rtl865x_mCastSysTimer);
 }
 
@@ -3020,8 +3020,7 @@ static int32 _rtl8198C_initMCastv6EntryPool(void)
 {
 	int32 index;
 	rtl8198c_tblDrv_mCastv6_t *multiCast_t;
-	struct MCast6_hash_head *mCast6_hash_head;
-	
+
 	TBL_MEM_ALLOC(multiCast_t, rtl8198c_tblDrv_mCastv6_t ,MAX_MCASTV6_TABLE_ENTRY_CNT);
 	TAILQ_INIT(&mCastTbl6.freeList.freeMultiCast);
 	for(index=0; index<MAX_MCASTV6_TABLE_ENTRY_CNT; index++)
@@ -3030,9 +3029,9 @@ static int32 _rtl8198C_initMCastv6EntryPool(void)
 		TAILQ_INSERT_HEAD(&mCastTbl6.freeList.freeMultiCast, &multiCast_t[index], nextMCast);
 	}
 
-	TBL_MEM_ALLOC(mCast6_hash_head, struct MCast6_hash_head, RTL8651_MULTICASTTBL_SIZE);
-	memset(mCast6_hash_head, 0,RTL8651_MULTICASTTBL_SIZE* sizeof(struct MCast6_hash_head));
-	mCastTbl6.inuseList.mCastTbl = (void *)mCast6_hash_head;
+	TBL_MEM_ALLOC(multiCast_t, rtl8198c_tblDrv_mCastv6_t, RTL8651_MULTICASTTBL_SIZE);
+	memset(multiCast_t, 0,RTL8651_MULTICASTTBL_SIZE* sizeof(rtl8198c_tblDrv_mCastv6_t));
+	mCastTbl6.inuseList.mCastTbl = (void *)multiCast_t;
 
 	for(index=0; index<RTL8651_MULTICASTTBL_SIZE; index++)
 	{
@@ -3291,7 +3290,7 @@ static void _rtl8198C_arrangeMulticastv6(uint32 entryIndex)
 
 				select_t->age = RTL865X_MULTICAST_TABLE_ASIC_AGE;
 				bzero(&asic_mcast, sizeof(rtl8198C_tblAsicDrv_multiCastv6Param_t));
-				memcpy(&asic_mcast, select_t, (uintptr_t)&(((rtl8198C_tblAsicDrv_multiCastv6Param_t *)0)->six_rd_idx));
+				memcpy(&asic_mcast, select_t, (uint32)&(((rtl8198C_tblAsicDrv_multiCastv6Param_t *)0)->six_rd_idx));
 				retval = rtl8198C_setAsicIpMulticastv6Table(hashMethod,&asic_mcast);
 				//printk("asic_mcast:dip:%x,[%s]:[%d].\n",asic_mcast.dip,__FUNCTION__,__LINE__);
 #ifdef CONFIG_PROC_FS
@@ -3438,7 +3437,7 @@ void _rtl8198C_timeUpdateMulticastv6(uint32 secPassed)
 }
 
 #if defined(__linux__) && defined(__KERNEL__)
-static void _rtl8198C_mCastv6SysTimerExpired(unsigned long expireDada)
+static void _rtl8198C_mCastv6SysTimerExpired(uint32 expireDada)
 {
 
 	_rtl8198C_timeUpdateMulticastv6(1);
@@ -3448,9 +3447,10 @@ static void _rtl8198C_mCastv6SysTimerExpired(unsigned long expireDada)
 
 static void _rtl8198C_initMCastv6SysTimer(void)
 {
-	rtl865x_mCastSysTimer.expires=jiffies+HZ;
-	setup_timer(&rtl8198c_mCast6SysTimer, _rtl8198C_mCastv6SysTimerExpired,
-			(unsigned long)rtl8198c_mCast6SysTimer.expires);
+	init_timer(&rtl8198c_mCast6SysTimer);
+	rtl8198c_mCast6SysTimer.data=rtl8198c_mCast6SysTimer.expires;
+	rtl8198c_mCast6SysTimer.expires=jiffies+HZ;
+	rtl8198c_mCast6SysTimer.function=(void*)_rtl8198C_mCastv6SysTimerExpired;
 	add_timer(&rtl8198c_mCast6SysTimer);
 }
 static void _rtl8198C_destroyMCastv6SysTimer(void)

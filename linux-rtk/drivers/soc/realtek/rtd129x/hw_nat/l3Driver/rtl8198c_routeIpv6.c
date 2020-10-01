@@ -5,11 +5,6 @@
 * Program : ipv6 route table driver
 * Abstract :
 * Author : Jia Wenjian (wenjain_jai@realsil.com.cn)
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
 */
 /*      @doc RTL_LAYEREDDRV_API
 
@@ -75,9 +70,9 @@ static rtl8198c_ipv6_route_t* _rtl8198c_getDefaultIpv6Route(void)
 	rtl8198c_ipv6_route_t *rt = NULL;
 	rt = rtl8198c_ipv6_route_inusedHead;
 
-	while (rt)
+	while(rt)
 	{
-		if ((rt->valid == 1) && (rt->asicIdx == (IPV6_RT_ASIC_ENTRY_NUM - 1)))
+		if((rt->valid==1) && (rt->asicIdx==(IPV6_RT_ASIC_ENTRY_NUM -1)))
 			return rt;
 
 		rt = rt->next;
@@ -86,35 +81,14 @@ static rtl8198c_ipv6_route_t* _rtl8198c_getDefaultIpv6Route(void)
 	return NULL;
 }
 
-void _rtl8198c_ipv6_addr_prefix(inv6_addr_t *pfx, inv6_addr_t *ipAddr, int fc_dst_len)
-{
-	struct in6_addr prefix;
-	inv6_addr_t addr;
-	addr = *ipAddr;
-	hton_inv6_addr(&addr);
-	ipv6_addr_prefix(&prefix, (struct in6_addr *)(&addr), fc_dst_len);
-	*(struct in6_addr *)pfx = prefix;
-	ntoh_inv6_addr(pfx);
-}
-bool _rtl8198c_ipv6_prefix_equal(inv6_addr_t *addr1, inv6_addr_t *addr2, int fc_dst_len)
-{
-	inv6_addr_t tmp1, tmp2;
-	tmp1 = *addr1;
-	tmp2 = *addr2;
-	hton_inv6_addr(&tmp1);
-	hton_inv6_addr(&tmp2);
-	return ipv6_prefix_equal((struct in6_addr *)&tmp1, (struct in6_addr *)&tmp2, fc_dst_len);
-}
-
 static rtl8198c_ipv6_route_t* _rtl8198c_getIpv6RouteEntry(inv6_addr_t ipAddr, int fc_len)
 {
 	rtl8198c_ipv6_route_t *rt = NULL;
 	rt = rtl8198c_ipv6_route_inusedHead;
 
-	while (rt)
+	while(rt)
 	{
-		if ((rt->valid == 1) && (rt->fc_dst_len == fc_len) &&
-			(_rtl8198c_ipv6_prefix_equal((&rt->ipAddr), (&ipAddr), rt->fc_dst_len)))
+		if((rt->valid==1) && (rt->fc_dst_len==fc_len) && (ipv6_prefix_equal((struct in6_addr *)(&rt->ipAddr), (struct in6_addr *)(&ipAddr), rt->fc_dst_len)))
 			return rt;
 
 		rt = rt->next;
@@ -547,7 +521,7 @@ static rtl8198c_ipv6_route_t * _rtl8198c_getNewRouteEntry(inv6_addr_t ipAddr,int
 	}
 
 	/*common information*/
-	_rtl8198c_ipv6_addr_prefix((&rt->ipAddr), (&ipAddr), fc_dst_len);
+	ipv6_addr_prefix((struct in6_addr *)(&rt->ipAddr), (struct in6_addr *)(&ipAddr), fc_dst_len);
 	rt->fc_dst_len = fc_dst_len;
 	memcpy(&rt->nextHop, &nextHop, sizeof(inv6_addr_t));
 	rt->dstNetif 	= netif;
@@ -586,16 +560,6 @@ static int32 _rtl8198c_addIpv6Route(inv6_addr_t ipAddr, int fc_dst_len, inv6_add
 		nextHop.v6_addr32[0],nextHop.v6_addr32[1],nextHop.v6_addr32[2],nextHop.v6_addr32[3],
 		ifName);
 #endif
-
-	/*All linklocal to DUT trap to cpu with prefix len = 10
-	  *reduce HW routing entry usage
-	  */
-	if ((ipAddr.v6_addr32[0] >> 16) == 0xFE80 )
-	{
-		if (fc_dst_len > 10)
-			fc_dst_len = 10;
-	}
-
 	/*
 	*duplicate entry check:
 	*	in Driver system, default route is always exist.
@@ -617,14 +581,6 @@ static int32 _rtl8198c_addIpv6Route(inv6_addr_t ipAddr, int fc_dst_len, inv6_add
 		/*deference rt's orginal netif*/
 		if (rt && rt->dstNetif)
 			rtl865x_deReferNetif(rt->dstNetif->name);
-
-		/*init rt*/
-		if (rt && rt->dstNetif) {
-			_rtl8198c_ipv6_addr_prefix((&rt->ipAddr), (&ipAddr), fc_dst_len);
-			rt->fc_dst_len = fc_dst_len;
-			memcpy(&rt->nextHop, &nextHop, sizeof(inv6_addr_t));
-			rt->dstNetif = netif;
-		}
 	}
 
 	/*allocate a new buffer for adding entry*/
@@ -1030,9 +986,7 @@ rtl8198c_ipv6_route_t* _rtl8198c_getIpv6RouteEntryByIp(inv6_addr_t dst)
 	fc_len = 0;
 	while(rt)
 	{
-		if (rt->valid == 1 &&
-			(_rtl8198c_ipv6_prefix_equal((&rt->ipAddr), (&dst), rt->fc_dst_len)) &&
-			fc_len <= rt->fc_dst_len) {
+		if (rt->valid == 1 && (ipv6_prefix_equal((struct in6_addr *)(&rt->ipAddr), (struct in6_addr *)(&dst), rt->fc_dst_len)) && fc_len <= rt->fc_dst_len) {
 			fc_len = rt->fc_dst_len;
 			tmpRtEntry = rt;
 		}
