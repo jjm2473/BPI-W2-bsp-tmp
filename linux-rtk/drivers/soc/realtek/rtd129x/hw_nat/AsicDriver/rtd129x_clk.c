@@ -1,7 +1,6 @@
 
 #include <linux/clk.h>   // clk_get
 #include <linux/clk-provider.h>
-#include <linux/reset-helper.h> // rstc_get
 #include <linux/reset.h>
 #include <linux/power-control.h>
 #include <linux/delay.h>
@@ -44,21 +43,21 @@ extern uint8 hwnat_mac5_conn_to; /* 0:PHY, 1:MAC */
 extern uint8 hwnat_rgmii_voltage; /* 1:1.8V, 2:2.5V, 3:3.3V */
 extern uint8 hwnat_rgmii_enable; /* 0:disable, 1:enable */
 
-void rtd129x_hwnat_set_sata_pllddsa(void)
+static void rtd129x_hwnat_set_sata_pllddsa(struct device *dev)
 {
 	uint32 val;
 	/* GET reset control */
-	struct reset_control *rstc_sata_0 = rstc_get("sata_0");
-	struct reset_control *rstc_sata_phy_0 = rstc_get("sata_phy_0");
-	struct reset_control *rstc_sata_phy_pow_0 = rstc_get("sata_phy_pow_0");
-	struct reset_control *rstc_sata_func_exist_0 = rstc_get("sata_func_exist_0");
-	struct reset_control *rstc_sds_phy = rstc_get("rstn_sds_phy");
+	struct reset_control *rstc_sata_0 = reset_control_get(dev, "sata_0");
+	struct reset_control *rstc_sata_phy_0 = reset_control_get(dev, "sata_phy_0");
+	struct reset_control *rstc_sata_phy_pow_0 = reset_control_get(dev, "sata_phy_pow_0");
+	struct reset_control *rstc_sata_func_exist_0 = reset_control_get(dev, "sata_func_exist_0");
+	struct reset_control *rstc_sds_phy = reset_control_get(dev, "rstn_sds_phy");
 
 	/* GET clock */
-	struct clk *clk_en_sata_0 = clk_get(NULL, "sata_0");
-	struct clk *clk_en_sata_alive_0 = clk_get(NULL, "sata_alive_0");
-	struct clk *clk_en_sata_1 = clk_get(NULL, "sata_1");
-	struct clk *clk_en_sata_alive_1 = clk_get(NULL, "sata_alive_1");
+	struct clk *clk_en_sata_0 = clk_get(dev, "sata_0");
+	struct clk *clk_en_sata_alive_0 = clk_get(dev, "sata_alive_0");
+	struct clk *clk_en_sata_1 = clk_get(dev, "sata_1");
+	struct clk *clk_en_sata_alive_1 = clk_get(dev, "sata_alive_1");
 
 	/* release SATA0 reset */
 	#if 1
@@ -785,7 +784,7 @@ static uint32_t rtd129x_system_init(struct device *dev)
 				WRITE_MEM32(PCRP0+i*4, val);
 			}
 
-			rtd129x_hwnat_set_sata_pllddsa();
+			rtd129x_hwnat_set_sata_pllddsa(dev);
 		}
 	}
 
